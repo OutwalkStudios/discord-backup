@@ -1,0 +1,58 @@
+{
+  "name": "@outwalk/discord-backup",
+  "version": "0.1.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "description": "",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "types/index.d.ts",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "engines": {
+    "node": "^16",
+    "npm": "^8"
+  },
+  "keywords": [
+    "discord",
+    "backup"
+  ],
+  "files": [
+    "dist",
+    "types"
+  ],
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "author": "Outwalk Studios <support@outwalkstudios.com> (https://www.outwalkstudios.com/)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OutwalkStudios/discord-backup.git"
+  },
+  "bugs": {
+    "url": "https://github.com/OutwalkStudios/discord-backup/issues"
+  },
+  "homepage": "https://github.com/OutwalkStudios/discord-backup#readme",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^22.0.1",
+    "@rollup/plugin-json": "^4.1.0",
+    "@rollup/plugin-node-resolve": "^13.3.0",
+    "esbuild": "^0.14.51",
+    "rollup": "^2.77.2",
+    "rollup-plugin-esbuild": "^4.9.1"
+  },
+  "dependencies": {
+    "axios": "^0.27.2",
+    "discord.js": "^14.x.x"
+  },
+  "peerDependencies": {
+    "discord.js": "^14.x.x"
+  }
+}
