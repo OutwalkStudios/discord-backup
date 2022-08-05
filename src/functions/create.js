@@ -69,7 +69,7 @@ export async function getChannels(guild, options) {
     for (let category of categories) {
         const categoryData = { name: category.name, permissions: fetchChannelPermissions(category), children: [] };
 
-        const children = category.children.sory((a, b) => a.position - b.position).toJSON();
+        const children = category.children.cache.sort((a, b) => a.position - b.position).toJSON();
 
         for (let child of children) {
             if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildNews) {

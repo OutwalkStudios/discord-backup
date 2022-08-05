@@ -24,10 +24,10 @@ export function loadConfig(guild, backup) {
     if (backup.bannerBase64) {
         promises.push(guild.setBanner(Buffer.from(backup.bannerBase64, "base64")));
     } else if (backup.bannerURL) {
-        promises.push(guild.setBanner(backupData.bannerURL));
+        promises.push(guild.setBanner(backup.bannerURL));
     }
 
-    if (backupData.verificationLevel) {
+    if (backup.verificationLevel) {
         promises.push(guild.setVerificationLevel(backup.verificationLevel));
     }
 
@@ -49,20 +49,36 @@ export function loadRoles(guild, backup) {
 
     for (let role of backup.roles) {
         if (role.isEveryone) {
-            promises.push(guild.roles.cache.get(guild.id).edit({
-                name: role.name,
-                color: role.color,
-                permissions: BigInt(role.permissions),
-                mentionable: role.mentionable
-            }));
+            console.log("everyone");
+            // promises.push(guild.roles.everyone.edit({
+            //     permissions: BigInt(role.permissions),
+            //     mentionable: role.mentionable
+            // }));
         } else {
-            promises.push(guild.roles.create({
-                name: role.name,
-                color: role.color,
-                hoist: role.hoist,
-                permissions: BigInt(role.permissions),
-                mentionable: role.mentionable
+            console.log(role.name);
+
+            promises.push(new Promise(async (resolve, reject) => {
+                try {
+                    const role = await guild.roles.create({
+                        name: role.name,
+                        color: role.color,
+                        hoist: role.hoist,
+                        permissions: BigInt(role.permissions),
+                        mentionable: role.mentionable
+                    });
+                    resolve(role);
+                } catch (error) {
+                    console.error(error.message);
+                    reject(error);
+                }
             }));
+            // promises.push(guild.roles.create({
+            //     name: role.name,
+            //     color: role.color,
+            //     hoist: role.hoist,
+            //     permissions: BigInt(role.permissions),
+            //     mentionable: role.mentionable
+            // }));
         }
     }
 

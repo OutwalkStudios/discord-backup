@@ -1,4 +1,4 @@
-import { SnowflakeUtil, Intents } from "discord.js";
+import { SnowflakeUtil, IntentsBitField, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import createFunctions from "./functions/create";
 import loadFunctions from "./functions/load";
@@ -13,7 +13,7 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 async function getBackupData(backupId) {
     return new Promise((resolve, reject) => {
         const files = fs.readdirSync(backups);
-        const file = files.filter((file) => path.extname(file) == ".json").find((file) => file == `${backupId}.json`);
+        const file = files.filter((file) => file.split(".").pop() == "json").find((file) => file == `${backupId}.json`);
 
         if (file) {
             const backupData = JSON.parse(fs.readFileSync(`${backups}${path.sep}${file}`));
@@ -28,7 +28,7 @@ async function getBackupData(backupId) {
 function fetch(backupId) {
     return new Promise(async (resolve, reject) => {
         try {
-            const backupData = await getBackupData();
+            const backupData = await getBackupData(backupId);
             const size = fs.statSync(`${backups}${path.sep}${backupId}.json`).size;
 
             const backupInfo = {
@@ -45,9 +45,20 @@ function fetch(backupId) {
 }
 
 /* creates a new backup and saves it to the storage */
-async function create(guild, options) {
-    const intents = new Intents(guild.client.options.intents);
-    if (!intents.has("GUILDS")) throw new Error("GUILDS intent is required");
+async function create(guild, options = {}) {
+    const intents = new IntentsBitField(guild.client.options.intents);
+    if (!intents.has(GatewayIntentBits.Guilds)) throw new Error("GUILDS intent is required");
+
+    options = {
+        backupId: null,
+        maxMessagesPerChannel: 10,
+        jsonSave: true,
+        jsonBeautify: true,
+        doNotBackup: [],
+        backupMembers: false,
+        saveImages: "",
+        ...options
+    };
 
     const backup = {
         name: guild.name,
@@ -66,7 +77,7 @@ async function create(guild, options) {
         members: [],
         createdTimestamp: Date.now(),
         guildID: guild.id,
-        id: options.backupID ?? SnowflakeUtil.generate(Date.now())
+        id: options.backupId ?? SnowflakeUtil.generate(Date.now())
     };
 
     if (guild.iconURL()) {
@@ -117,7 +128,8 @@ async function create(guild, options) {
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
-        const backupJSON = options.jsonBeautify ? JSON.stringify(backup, null, 4) : JSON.stringify(backup);
+        const reviver = (key, value) => typeof value == "bigint" ? value.toString() : value;
+        const backupJSON = options.jsonBeautify ? JSON.stringify(backup, reviver, 4) : JSON.stringify(backup, reviver);
         fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
     }
 
@@ -125,32 +137,39 @@ async function create(guild, options) {
 }
 
 /* loads a backup for a guild */
-async function load(backup, guild, options) {
+async function load(backup, guild, options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10 }) {
     if (!guild) throw new Error("Invalid Guild!");
 
-    try {
-        const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
+    const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
 
-        try {
-            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-                await clearGuild(guild);
-            }
-
-            await Promise.all([
-                loadFunctions.loadConfig(guild, backupData),
-                loadFunctions.loadRoles(guild, backupData),
-                loadFunctions.loadChannels(guild, backupData),
-                loadFunctions.loadAFk(guild, backupData),
-                loadFunctions.loadEmojis(guild, backupData),
-                loadFunctions.loadBans(guild, backupData),
-                loadFunctions.loadEmbedChannel(guild, backupData)
-            ]);
-        } catch (error) {
-            throw error;
-        }
-    } catch {
-        throw new Error("No backup found");
+    if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+        await clearGuild(guild);
     }
+
+    await loadFunctions.loadConfig(guild, backupData);
+    console.log(1)
+    await loadFunctions.loadRoles(guild, backupData);
+    console.log(2)
+    await loadFunctions.loadChannels(guild, backupData, options);
+    console.log(3)
+    await loadFunctions.loadAFk(guild, backupData);
+    console.log(4)
+    await loadFunctions.loadEmojis(guild, backupData);
+    console.log(5)
+    await loadFunctions.loadBans(guild, backupData);
+    console.log(6)
+    await loadFunctions.loadEmbedChannel(guild, backupData);
+    console.log(7)
+
+    // return Promise.all([
+    //     loadFunctions.loadConfig(guild, backupData),
+    //     loadFunctions.loadRoles(guild, backupData),
+    //     loadFunctions.loadChannels(guild, backupData, options),
+    //     loadFunctions.loadAFk(guild, backupData),
+    //     loadFunctions.loadEmojis(guild, backupData),
+    //     loadFunctions.loadBans(guild, backupData),
+    //     loadFunctions.loadEmbedChannel(guild, backupData)
+    // ]);
 }
 
 /* removes a backup */
@@ -173,7 +192,7 @@ function setStorageFolder(path) {
     if (path.endsWith(path.sep)) path = path.substr(0, path.length - 1);
 
     backups = path;
-    if(!fs.existsSync(backups)) fs.mkdirSync(backups);
+    if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 }
 
-export default { create, fetch, list, load, remove };
+export default { create, fetch, list, load, remove, setStorageFolder };
