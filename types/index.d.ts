@@ -1,21 +1,16 @@
 import type { Guild } from "discord.js";
 
-declare module "@outwalk/discord-backup" {
-
-    interface Options {
-        backupId: string,
-        maxMessagesPerChannel: number,
-        jsonSave: boolean,
-        jsonBeautify: boolean,
-        doNotBackup: string[],
-        saveImages: string
-    };
-
-    async function create(guild: Guild, options: Options): Object;
-    async function load(backup: Object, guild: Guild, options: Options): Promise<void>;
-    async function remove(backupId: string): void;
-    function list(): string[];
-    function setStorageFolder(path: string): void;
-
-    export default { create, load, remove, list, setStorageFolder };
+export declare interface Options {
+    backupId: string,
+    maxMessagesPerChannel: number,
+    jsonSave: boolean,
+    jsonBeautify: boolean,
+    doNotBackup: string[],
+    saveImages: string
 }
+
+export declare function create(guild: Guild, options: Options): Promise<Object>;
+export declare function load(backup: Object, guild: Guild, options: Options): Promise<void>;
+export declare function remove(backupId: string): Promise<void>;
+export declare function list(): string[];
+export declare function setStorageFolder(path: string): void;
