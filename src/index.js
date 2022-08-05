@@ -146,30 +146,15 @@ async function load(backup, guild, options = { clearGuildBeforeRestore: true, ma
         await clearGuild(guild);
     }
 
-    await loadFunctions.loadConfig(guild, backupData);
-    console.log(1)
-    await loadFunctions.loadRoles(guild, backupData);
-    console.log(2)
-    await loadFunctions.loadChannels(guild, backupData, options);
-    console.log(3)
-    await loadFunctions.loadAFk(guild, backupData);
-    console.log(4)
-    await loadFunctions.loadEmojis(guild, backupData);
-    console.log(5)
-    await loadFunctions.loadBans(guild, backupData);
-    console.log(6)
-    await loadFunctions.loadEmbedChannel(guild, backupData);
-    console.log(7)
-
-    // return Promise.all([
-    //     loadFunctions.loadConfig(guild, backupData),
-    //     loadFunctions.loadRoles(guild, backupData),
-    //     loadFunctions.loadChannels(guild, backupData, options),
-    //     loadFunctions.loadAFk(guild, backupData),
-    //     loadFunctions.loadEmojis(guild, backupData),
-    //     loadFunctions.loadBans(guild, backupData),
-    //     loadFunctions.loadEmbedChannel(guild, backupData)
-    // ]);
+    return Promise.all([
+        loadFunctions.loadConfig(guild, backupData),
+        loadFunctions.loadRoles(guild, backupData),
+        loadFunctions.loadChannels(guild, backupData, options),
+        loadFunctions.loadAFk(guild, backupData),
+        loadFunctions.loadEmojis(guild, backupData),
+        loadFunctions.loadBans(guild, backupData),
+        loadFunctions.loadEmbedChannel(guild, backupData)
+    ]);
 }
 
 /* removes a backup */

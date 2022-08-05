@@ -44,41 +44,23 @@ export function loadConfig(guild, backup) {
 }
 
 /* restore the guild roles */
-export function loadRoles(guild, backup) {
+export async function loadRoles(guild, backup) {
     const promises = [];
 
     for (let role of backup.roles) {
         if (role.isEveryone) {
-            console.log("everyone");
-            // promises.push(guild.roles.everyone.edit({
-            //     permissions: BigInt(role.permissions),
-            //     mentionable: role.mentionable
-            // }));
-        } else {
-            console.log(role.name);
-
-            promises.push(new Promise(async (resolve, reject) => {
-                try {
-                    const role = await guild.roles.create({
-                        name: role.name,
-                        color: role.color,
-                        hoist: role.hoist,
-                        permissions: BigInt(role.permissions),
-                        mentionable: role.mentionable
-                    });
-                    resolve(role);
-                } catch (error) {
-                    console.error(error.message);
-                    reject(error);
-                }
+            promises.push(guild.roles.edit(guild.roles.everyone, {
+                permissions: BigInt(role.permissions),
+                mentionable: role.mentionable
             }));
-            // promises.push(guild.roles.create({
-            //     name: role.name,
-            //     color: role.color,
-            //     hoist: role.hoist,
-            //     permissions: BigInt(role.permissions),
-            //     mentionable: role.mentionable
-            // }));
+        } else {
+            promises.push(guild.roles.create({
+                name: role.name,
+                color: role.color,
+                hoist: role.hoist,
+                permissions: BigInt(role.permissions),
+                mentionable: role.mentionable
+            }));
         }
     }
 
