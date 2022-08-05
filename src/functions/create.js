@@ -1,3 +1,4 @@
+import { ChannelType } from "discord.js";
 import axios from "axios";
 import { fetchChannelPermissions, fetchTextChannelData, fetchVoiceChannelData } from "../utils";
 
@@ -61,7 +62,7 @@ export async function getChannels(guild, options) {
     const channels = { categories: [], others: [] };
 
     const categories = guild.channels.cache
-        .filter((channel) => channel.type == "GUILD_CATEGORY")
+        .filter((channel) => channel.type == ChannelType.GuildCategory)
         .sort((a, b) => a.position - b.position)
         .toJSON();
 
@@ -71,7 +72,7 @@ export async function getChannels(guild, options) {
         const children = category.children.sory((a, b) => a.position - b.position).toJSON();
 
         for (let child of children) {
-            if (child.type == "GUILD_TEXT" || child.type == "GUILD_NEWS") {
+            if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildNews) {
                 const channelData = await fetchTextChannelData(child, options);
                 categoryData.children.push(channelData);
             } else {
@@ -87,18 +88,17 @@ export async function getChannels(guild, options) {
         .filter((channel) => {
             return (
                 !channel.parent &&
-                channel.type != "GUILD_CATEGORY" &&
-                channel.type != "GUILD_STORE" &&
-                channel.type != "GUILD_NEWS_THREAD" &&
-                channel.type != "GUILD_PRIVATE_THREAD" &&
-                channel.type != "GUILD_PUBLIC_THREAD"
+                channel.type != ChannelType.GuildCategory &&
+                channel.type != ChannelType.GuildNewsThread &&
+                channel.type != ChannelType.GuildPrivateThread &&
+                channel.type != ChannelType.GuildPublicThread
             );
         })
         .sort((a, b) => a.position - b.position)
         .toJSON();
 
     for (let channel of others) {
-        if (channel.type == "GUILD_TEXT" || channel.type == "GUILD_NEWS") {
+        if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildNews) {
             const channelData = await fetchTextChannelData(channel, options);
             channels.others.push(channelData);
         } else {

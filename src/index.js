@@ -16,7 +16,7 @@ async function getBackupData(backupId) {
         const file = files.filter((file) => path.extname(file) == ".json").find((file) => file == `${backupId}.json`);
 
         if (file) {
-            const backupData = require(`${backups}${path.sep}${file}`);
+            const backupData = JSON.parse(fs.readFileSync(`${backups}${path.sep}${file}`));
             resolve(backupData);
         } else {
             reject("No backup found");
@@ -25,7 +25,7 @@ async function getBackupData(backupId) {
 }
 
 /* fetches a backup and returns the information about it */
-export function fetch(backupId) {
+function fetch(backupId) {
     return new Promise(async (resolve, reject) => {
         try {
             const backupData = await getBackupData();
@@ -45,7 +45,7 @@ export function fetch(backupId) {
 }
 
 /* creates a new backup and saves it to the storage */
-export async function create(guild, options) {
+async function create(guild, options) {
     const intents = new Intents(guild.client.options.intents);
     if (!intents.has("GUILDS")) throw new Error("GUILDS intent is required");
 
@@ -125,7 +125,7 @@ export async function create(guild, options) {
 }
 
 /* loads a backup for a guild */
-export async function load(backup, guild, options) {
+async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
     try {
@@ -154,7 +154,7 @@ export async function load(backup, guild, options) {
 }
 
 /* removes a backup */
-export async function remove(backupId) {
+async function remove(backupId) {
     try {
         fs.unlinkSync(`${backups}${path.sep}${backupId}.json`);
     } catch {
@@ -163,13 +163,13 @@ export async function remove(backupId) {
 }
 
 /* returns the list of all backups */
-export function list() {
+function list() {
     const files = fs.readdirSync(backups);
     return files.map((file) => file.split(".")[0]);
 }
 
 /* change the storage path */
-export function setStorageFolder(path) {
+function setStorageFolder(path) {
     if (path.endsWith(path.sep)) path = path.substr(0, path.length - 1);
 
     backups = path;

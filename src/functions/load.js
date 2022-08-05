@@ -1,3 +1,4 @@
+import { GuildFeature } from "discord.js";
 import { loadCategory, loadChannel } from "../utils";
 
 /* restores the guild configuration */
@@ -34,7 +35,7 @@ export function loadConfig(guild, backup) {
         promises.push(guild.setDefaultMessageNotifications(backup.defaultMessageNotifications));
     }
 
-    const changeableExplicitLevel = guild.features.includes("COMMUNITY");
+    const changeableExplicitLevel = guild.features.includes(GuildFeature.Community);
     if (backup.explicitContentFilter && changeableExplicitLevel) {
         promises.push(guild.setExplictContentFilter(backup.explicitContentFilter));
     }
@@ -97,7 +98,7 @@ export function loadAFk(guild, backup) {
     const promises = [];
 
     if (backup.afk) {
-        promises.push(guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == "GUILD_VOICE")));
+        promises.push(guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == ChannelType.GuildVoice)));
         promises.push(guild.setAFKTimeout(backup.afk.timeout));
     }
 
@@ -110,9 +111,9 @@ export function loadEmojis(guild, backup) {
 
     for (let emoji of backup.emojis) {
         if (emoji.url) {
-            promises.push(guild.emojis.create(emoji.url, emoji.name));
+            promises.push(guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
         } else if (emoji.base64) {
-            promises.push(guild.emojis.create(Buffer.from(emoji.base64, "base64"), emoji.name));
+            promises.push(guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }));
         }
     }
 

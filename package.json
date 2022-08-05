@@ -49,10 +49,9 @@
     "rollup-plugin-esbuild": "^4.9.1"
   },
   "dependencies": {
-    "axios": "^0.27.2",
-    "discord.js": "^14.x.x"
+    "axios": "^0.27.2"
   },
   "peerDependencies": {
-    "discord.js": "^14.x.x"
+    "discord.js": "14.x.x"
   }
 }

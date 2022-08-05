@@ -17,5 +17,5 @@ export default {
         json(),
         esbuild({ target: "es2015", minify: true })
     ],
-    external: builtinModules.concat(Object.keys(dependencies))
+    external: builtinModules.concat(["discord.js", ...Object.keys(dependencies)])
 };
