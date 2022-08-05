@@ -4,7 +4,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "description": "",
+  "description": "A module for backing up and restoring discord servers.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "types/index.d.ts",
