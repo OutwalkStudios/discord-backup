@@ -2,6 +2,7 @@ import { SnowflakeUtil, IntentsBitField, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import createFunctions from "./functions/create";
 import loadFunctions from "./functions/load";
+import { RateLimitManager } from "./modules/ratelimit";
 import { clearGuild } from "./utils";
 import path from "path";
 import fs from "fs";
@@ -137,23 +138,32 @@ async function create(guild, options = {}) {
 }
 
 /* loads a backup for a guild */
-async function load(backup, guild, options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10 }) {
+async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
+
+    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, mode: "auto", ...options };
 
     const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
 
+    if (typeof options.mode != "string" && typeof options.mode != "number") {
+        throw new Error("Mode option must be a string or number");
+    }
+
+    const modes = { safe: 3000, slow: 1500, fast: 250, auto: 750 };
+    const rateLimitManager = new RateLimitManager(50, 10000, typeof options.mode == "string" ? modes[options.mode] : options.mode);
+
     if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-        await clearGuild(guild);
+        await clearGuild(guild, rateLimitManager);
     }
 
     return Promise.all([
-        loadFunctions.loadConfig(guild, backupData),
-        loadFunctions.loadRoles(guild, backupData),
-        loadFunctions.loadChannels(guild, backupData, options),
-        loadFunctions.loadAFk(guild, backupData),
-        loadFunctions.loadEmojis(guild, backupData),
-        loadFunctions.loadBans(guild, backupData),
-        loadFunctions.loadEmbedChannel(guild, backupData)
+        loadFunctions.loadConfig(guild, backupData, rateLimitManager),
+        loadFunctions.loadRoles(guild, backupData, rateLimitManager),
+        loadFunctions.loadChannels(guild, backupData, options, rateLimitManager),
+        loadFunctions.loadAFk(guild, backupData, rateLimitManager),
+        loadFunctions.loadEmojis(guild, backupData, rateLimitManager),
+        loadFunctions.loadBans(guild, backupData, rateLimitManager),
+        loadFunctions.loadEmbedChannel(guild, backupData, rateLimitManager)
     ]);
 }
 
@@ -173,10 +183,10 @@ function list() {
 }
 
 /* change the storage path */
-function setStorageFolder(path) {
-    if (path.endsWith(path.sep)) path = path.substr(0, path.length - 1);
+function setStorageFolder(pathname) {
+    if (pathname.endsWith(path.sep)) pathname = pathname.substr(0, pathname.length - 1);
 
-    backups = path;
+    backups = pathname;
     if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 }
 

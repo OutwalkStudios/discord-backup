@@ -65,24 +65,25 @@ export async function fetchChannelMessages(channel, options) {
 
         lastMessageId = fetched.last().id;
 
-        fetched.forEach(async (message) => {
+        await Promise.all(fetched.map(async (message) => {
             if (!message.author || messages.length >= messageCount) {
                 fetchComplete = true;
                 return;
             }
 
-            const files = await message.attachments.map(async (attachment) => {
+            const files = await Promise.all(message.attachments.map(async (attachment) => {
                 let attach = attachment.url;
 
                 if (attachment.url && ["png", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi"].includes(attachment.url)) {
                     if (options.saveImages && options.saveImages == "base64") {
                         const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
-                        attach = Buffer.from(response.data, "binary").toString("base64");
+                        const buffer = Buffer.from(response.data, "binary").toString("base64");
+                        if (Buffer.byteLength(buffer) <= 8000000) attach = buffer;
                     }
-
-                    return { name: attachment.name, attachment: attach };
                 }
-            });
+
+                return { name: attachment.name, attachment: attach };
+            }));
 
             messages.push({
                 username: message.author.username,
@@ -93,7 +94,7 @@ export async function fetchChannelMessages(channel, options) {
                 pinned: message.pinned,
                 sentAt: message.createdAt.toISOString()
             });
-        });
+        }));
     }
 
     return messages;
@@ -144,8 +145,8 @@ export async function fetchTextChannelData(channel, options) {
 }
 
 /* creates a category for the guild */
-export async function loadCategory(categoryData, guild) {
-    const category = await guild.channels.create({ name: categoryData.name, type: ChannelType.GuildCategory });
+export async function loadCategory(categoryData, guild, rateLimitManager) {
+    const category = await rateLimitManager.resolver(guild.channels, "create", { name: categoryData.name, type: ChannelType.GuildCategory });
     const finalPermissions = [];
 
     categoryData.permissions.forEach((permission) => {
@@ -159,23 +160,24 @@ export async function loadCategory(categoryData, guild) {
         }
     });
 
-    await category.permissionOverwrites.set(finalPermissions);
+    await rateLimitManager.resolver(category.permissionOverwrites, "set", finalPermissions);
     return category;
 }
 
 /* creates a channel and returns it */
-export async function loadChannel(channelData, guild, category, options) {
+export async function loadChannel(channelData, guild, category, options, rateLimitManager) {
 
     const loadMessages = async (channel, messages, previousWebhook) => {
-        const webhook = previousWebhook || await channel.createWebhook({ name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() });
+        const webhook = previousWebhook || await rateLimitManager.resolver(channel, "createWebhook", { name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() });
         if (!webhook) return;
 
         messages = messages.filter((message) => (message.content.length > 0 || message.embeds.length > 0 || message.files.length > 0)).reverse();
         messages = messages.slice(messages.length - options.maxMessagesPerChannel);
 
         for (let message of messages) {
+            if (message.content.length > 2000) continue;
             try {
-                const sent = await webhook.send({
+                const sent = await rateLimitManager.resolver(webhook, "send", {
                     content: message.content.length ? message.content : undefined,
                     username: message.username,
                     avatarURL: message.avatar,
@@ -185,9 +187,10 @@ export async function loadChannel(channelData, guild, category, options) {
                     threadId: channel.isThread() ? channel.id : undefined
                 });
 
-                if (message.pinned && sent) await sent.pin();
+                if (message.pinned && sent) await rateLimitManager.resolver(sent, "pin");
             } catch (error) {
                 console.error(error.message);
+                console.log(message);
             }
         }
 
@@ -216,7 +219,7 @@ export async function loadChannel(channelData, guild, category, options) {
         createOptions.type = ChannelType.GuildVoice;
     }
 
-    const channel = await guild.channels.create(createOptions);
+    const channel = await rateLimitManager.resolver(guild.channels, "create", createOptions);
     const finalPermissions = [];
 
     channelData.permissions.forEach((permission) => {
@@ -230,7 +233,7 @@ export async function loadChannel(channelData, guild, category, options) {
         }
     });
 
-    await channel.permissionOverwrites.set(finalPermissions);
+    await rateLimitManager.resolver(channel.permissionOverwrites, "set", finalPermissions);
 
     if (channelData.type == ChannelType.GuildText) {
         let webhook;
@@ -241,7 +244,7 @@ export async function loadChannel(channelData, guild, category, options) {
 
         if (channelData.threads.length > 0) {
             channelData.threads.forEach(async (threadData) => {
-                await channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration });
+                await rateLimitManager.resolver(channel.threads, "create", { name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration });
                 if (webhook) await loadMessages(thread, threadData.messages, webhook);
             });
         }
@@ -251,34 +254,34 @@ export async function loadChannel(channelData, guild, category, options) {
 }
 
 /* delete all roles, channels, emojis, etc of a guild */
-export async function clearGuild(guild) {
+export async function clearGuild(guild, rateLimitManager) {
     const roles = guild.roles.cache.filter((role) => !role.managed && role.editable && role.id != guild.id);
-    roles.forEach(async (role) => await role.delete());
+    roles.forEach((role) => rateLimitManager.resolver(role, "delete"));
 
-    guild.channels.cache.forEach(async (channel) => await channel.delete());
-    guild.emojis.cache.forEach(async (emoji) => await emoji.delete());
+    guild.channels.cache.forEach((channel) => rateLimitManager.resolver(channel, "delete"));
+    guild.emojis.cache.forEach((emoji) => rateLimitManager.resolver(emoji, "delete"));
 
-    const webhooks = await guild.fetchWebhooks();
-    webhooks.forEach(async (webhook) => await webhook.delete());
+    const webhooks = await rateLimitManager.resolver(guild, "fetchWebhooks");
+    webhooks.forEach((webhook) => rateLimitManager.resolver(webhook, "delete"));
 
-    const bans = await guild.bans.fetch();
-    bans.forEach(async (ban) => await guild.members.unban(ban.user));
+    const bans = await rateLimitManager.resolver(guild.bans, "fetch")
+    bans.forEach((ban) => rateLimitManager.resolver(guild.members, "unban", ban.user));
 
-    guild.setAFKChannel(null);
-    guild.setAFKTimeout(60 * 5);
-    guild.setIcon(null);
-    guild.setBanner(null);
-    guild.setSplash(null);
-    guild.setDefaultMessageNotifications(GuildDefaultMessageNotifications.OnlyMentions);
-    guild.setWidgetSettings({ enabled: false, channel: null });
+    rateLimitManager.resolver(guild, "setAFKChannel", null);
+    rateLimitManager.resolver(guild, "setAFKTimeout", 60 * 5);
+    rateLimitManager.resolver(guild, "setIcon", null);
+    rateLimitManager.resolver(guild, "setBanner", null);
+    rateLimitManager.resolver(guild, "setSplash", null);
+    rateLimitManager.resolver(guild, "setDefaultMessageNotifications", GuildDefaultMessageNotifications.OnlyMentions);
+    rateLimitManager.resolver(guild, "setWidgetSettings", { enabled: false, channel: null });
 
     if (!guild.features.includes(GuildFeature.Community)) {
-        guild.setExplicitContentFilter(GuildExplicitContentFilter.Disabled);
-        guild.setVerificationLevel(GuildVerificationLevel.None);
+        rateLimitManager.resolver(guild, "setExplicitContentFilter", GuildExplicitContentFilter.Disabled);
+        rateLimitManager.resolver(guild, "setVerificationLevel", GuildVerificationLevel.None);
     }
 
-    guild.setSystemChannel(null);
-    guild.setSystemChannelFlags([
+    rateLimitManager.resolver(guild, "setSystemChannel", null);
+    rateLimitManager.resolver(guild, "setSystemChannelFlags", [
         GuildSystemChannelFlags.SuppressGuildReminderNotifications,
         GuildSystemChannelFlags.SuppressJoinNotifications,
         GuildSystemChannelFlags.SuppressPremiumSubscriptions
