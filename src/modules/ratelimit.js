@@ -37,7 +37,7 @@ export class RateLimitManager {
                 } while (this.queue.length > 0);
 
                 this.process = false;
-                console.log("finish");
+                console.log("finished");
             }
         });
     }

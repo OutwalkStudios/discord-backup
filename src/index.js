@@ -149,7 +149,7 @@ async function load(backup, guild, options) {
         throw new Error("Mode option must be a string or number");
     }
 
-    const modes = { safe: 3000, slow: 1500, fast: 250, auto: 750 };
+    const modes = { slow: 1500, fast: 250, auto: 750 };
     const rateLimitManager = new RateLimitManager(50, 10000, typeof options.mode == "string" ? modes[options.mode] : options.mode);
 
     if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {

@@ -7,7 +7,7 @@ export declare interface Options {
     jsonBeautify: boolean,
     doNotBackup: string[],
     saveImages: string,
-    mode: "safe" | "slow" | "auto" | "fast"
+    mode: "slow" | "auto" | "fast"
 }
 
 export declare function create(guild: Guild, options: Options): Promise<Object>;
