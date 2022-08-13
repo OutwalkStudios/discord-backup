@@ -4,7 +4,8 @@ import {
     GuildDefaultMessageNotifications,
     GuildExplicitContentFilter,
     GuildVerificationLevel,
-    GuildSystemChannelFlags
+    GuildSystemChannelFlags,
+    OverwriteType
 } from "discord.js";
 import axios from "axios";
 
@@ -20,7 +21,7 @@ export function fetchChannelPermissions(channel) {
     const permissions = [];
 
     channel.permissionOverwrites.cache
-        .filter((permission) => permission.type == "role")
+        .filter((permission) => permission.type == OverwriteType.Role)
         .forEach((permission) => {
             const role = channel.guild.roles.cache.get(permission.id);
             if (role) {
@@ -70,6 +71,9 @@ export async function fetchChannelMessages(channel, options) {
                 fetchComplete = true;
                 return;
             }
+
+            /* dont save messages that are too long */
+            if (message.cleanContent.length > 2000) return;
 
             const files = await Promise.all(message.attachments.map(async (attachment) => {
                 let attach = attachment.url;
