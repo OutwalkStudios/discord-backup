@@ -41,7 +41,7 @@ export async function getRoles(guild) {
 export async function getEmojis(guild, options) {
     const emojis = [];
 
-    for (let emoji of guild.emojis.cache) {
+    guild.emojis.cache.forEach(async (emoji) => {
         const data = { name: emoji.name };
 
         if (options.saveImages && options.saveImages == "base64") {
@@ -52,8 +52,8 @@ export async function getEmojis(guild, options) {
         }
 
         emojis.push(data);
-    }
-
+    });
+    
     return emojis;
 }
 
