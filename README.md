@@ -103,7 +103,7 @@ await backup.create(guild, {
 
 **maxMessagesPerChannel**: Maximum of messages to save in each channel. "0" won't save any messages.  
 **jsonSave**: Whether to save the backup into a json file. You will have to save the backup data in your own db to load it later.  
-**jsonBeautify**: Whether you want your json backup pretty formatted.  
+**jsonBeautify**: Whether you want your json backup pretty formatted.
 **doNotBackup**: Things you don't want to backup. Available items are: `roles`, `channels`, `emojis`, `bans`.  
 **saveImages**: How to save images like guild icon and emojis. Set to "url" by default, restoration may not work if the old server is deleted. So, `url` is recommended if you want to clone a server (or if you need very light backups), and `base64` if you want to backup a server. Save images as base64 creates heavier backups.
 
@@ -121,6 +121,7 @@ await backup.load(backupData, guild, {
 
 **clearGuildBeforeRestore**: Whether to clear the guild (roles, channels, etc... will be deleted) before the backup restoration (recommended).  
 **maxMessagesPerChannel**: Maximum of messages to restore in each channel. "0" won't restore any messages.
+**mode**: What speed to run at, options are `slow`, `auto`, `fast`
 
 ---
 
