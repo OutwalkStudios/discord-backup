@@ -1,8 +1,8 @@
 import { SnowflakeUtil, IntentsBitField, GatewayIntentBits } from "discord.js";
+import Bottleneck from "bottleneck";
 import axios from "axios";
 import createFunctions from "./functions/create";
 import loadFunctions from "./functions/load";
-import { RateLimitManager } from "./modules/ratelimit";
 import { clearGuild } from "./utils";
 import path from "path";
 import fs from "fs";
@@ -150,21 +150,23 @@ async function load(backup, guild, options) {
     }
 
     const modes = { slow: 1500, fast: 250, auto: 750 };
-    const rateLimitManager = new RateLimitManager(50, 10000, typeof options.mode == "string" ? modes[options.mode] : options.mode);
+    const limiter = new Bottleneck({ minTime: modes[options.mode], maxConcurrent: 1 });
 
     if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-        await clearGuild(guild, rateLimitManager);
+        await clearGuild(guild, limiter);
     }
 
-    return Promise.all([
-        loadFunctions.loadConfig(guild, backupData, rateLimitManager),
-        loadFunctions.loadRoles(guild, backupData, rateLimitManager),
-        loadFunctions.loadChannels(guild, backupData, options, rateLimitManager),
-        loadFunctions.loadAFk(guild, backupData, rateLimitManager),
-        loadFunctions.loadEmojis(guild, backupData, rateLimitManager),
-        loadFunctions.loadBans(guild, backupData, rateLimitManager),
-        loadFunctions.loadEmbedChannel(guild, backupData, rateLimitManager)
+    await Promise.all([
+        loadFunctions.loadConfig(guild, backupData, limiter),
+        loadFunctions.loadRoles(guild, backupData, limiter),
+        loadFunctions.loadChannels(guild, backupData, options, limiter),
+        loadFunctions.loadAFk(guild, backupData, limiter),
+        loadFunctions.loadEmojis(guild, backupData, limiter),
+        loadFunctions.loadBans(guild, backupData, limiter),
+        loadFunctions.loadEmbedChannel(guild, backupData, limiter)
     ]);
+
+    return backupData;
 }
 
 /* removes a backup */

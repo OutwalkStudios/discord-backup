@@ -54,7 +54,7 @@ export async function getEmojis(guild, options) {
         emojis.push(data);
     });
     
-    return emojis;
+    return (emojis.length > 50) ? emojis.splice(50) : emojis;
 }
 
 /* returns an array with the channels of the guild */

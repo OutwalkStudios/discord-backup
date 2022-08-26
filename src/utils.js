@@ -149,8 +149,8 @@ export async function fetchTextChannelData(channel, options) {
 }
 
 /* creates a category for the guild */
-export async function loadCategory(categoryData, guild, rateLimitManager) {
-    const category = await rateLimitManager.resolver(guild.channels, "create", { name: categoryData.name, type: ChannelType.GuildCategory });
+export async function loadCategory(categoryData, guild, limiter) {
+    const category = await limiter.schedule(() => guild.channels.create({ name: categoryData.name, type: ChannelType.GuildCategory }));
     const finalPermissions = [];
 
     categoryData.permissions.forEach((permission) => {
@@ -164,15 +164,15 @@ export async function loadCategory(categoryData, guild, rateLimitManager) {
         }
     });
 
-    await rateLimitManager.resolver(category.permissionOverwrites, "set", finalPermissions);
+    await limiter.schedule(() => category.permissionOverwrites.set(finalPermissions));
     return category;
 }
 
 /* creates a channel and returns it */
-export async function loadChannel(channelData, guild, category, options, rateLimitManager) {
+export async function loadChannel(channelData, guild, category, options, limiter) {
 
     const loadMessages = async (channel, messages, previousWebhook) => {
-        const webhook = previousWebhook || await rateLimitManager.resolver(channel, "createWebhook", { name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() });
+        const webhook = previousWebhook || await limiter.schedule(() => channel.createWebhook({ name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() }));
         if (!webhook) return;
 
         messages = messages.filter((message) => (message.content.length > 0 || message.embeds.length > 0 || message.files.length > 0)).reverse();
@@ -181,7 +181,7 @@ export async function loadChannel(channelData, guild, category, options, rateLim
         for (let message of messages) {
             if (message.content.length > 2000) continue;
             try {
-                const sent = await rateLimitManager.resolver(webhook, "send", {
+                const sent = await limiter.schedule(() => webhook.send({
                     content: message.content.length ? message.content : undefined,
                     username: message.username,
                     avatarURL: message.avatar,
@@ -189,9 +189,9 @@ export async function loadChannel(channelData, guild, category, options, rateLim
                     files: message.files,
                     allowedMentions: options.allowedMentions,
                     threadId: channel.isThread() ? channel.id : undefined
-                });
+                }));
 
-                if (message.pinned && sent) await rateLimitManager.resolver(sent, "pin");
+                if (message.pinned && sent) await limiter.schedule(() => sent.pin());
             } catch (error) {
                 console.error(error.message);
                 console.log(message);
@@ -223,7 +223,7 @@ export async function loadChannel(channelData, guild, category, options, rateLim
         createOptions.type = ChannelType.GuildVoice;
     }
 
-    const channel = await rateLimitManager.resolver(guild.channels, "create", createOptions);
+    const channel = await limiter.schedule(() => guild.channels.create(createOptions));
     const finalPermissions = [];
 
     channelData.permissions.forEach((permission) => {
@@ -237,7 +237,7 @@ export async function loadChannel(channelData, guild, category, options, rateLim
         }
     });
 
-    await rateLimitManager.resolver(channel.permissionOverwrites, "set", finalPermissions);
+    await limiter.schedule(() => channel.permissionOverwrites.set(finalPermissions));
 
     if (channelData.type == ChannelType.GuildText) {
         let webhook;
@@ -248,7 +248,7 @@ export async function loadChannel(channelData, guild, category, options, rateLim
 
         if (channelData.threads.length > 0) {
             channelData.threads.forEach(async (threadData) => {
-                await rateLimitManager.resolver(channel.threads, "create", { name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration });
+                await limiter.schedule(() => channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration }));
                 if (webhook) await loadMessages(thread, threadData.messages, webhook);
             });
         }
@@ -258,36 +258,36 @@ export async function loadChannel(channelData, guild, category, options, rateLim
 }
 
 /* delete all roles, channels, emojis, etc of a guild */
-export async function clearGuild(guild, rateLimitManager) {
+export async function clearGuild(guild, limiter) {
     const roles = guild.roles.cache.filter((role) => !role.managed && role.editable && role.id != guild.id);
-    roles.forEach((role) => rateLimitManager.resolver(role, "delete"));
+    roles.forEach(async (role) => await limiter.schedule(() => role.delete()));
 
-    guild.channels.cache.forEach((channel) => rateLimitManager.resolver(channel, "delete"));
-    guild.emojis.cache.forEach((emoji) => rateLimitManager.resolver(emoji, "delete"));
+    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete()));
+    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete()));
 
-    const webhooks = await rateLimitManager.resolver(guild, "fetchWebhooks");
-    webhooks.forEach((webhook) => rateLimitManager.resolver(webhook, "delete"));
+    const webhooks = await limiter.schedule(() => guild.fetchWebhooks());
+    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete()));
 
-    const bans = await rateLimitManager.resolver(guild.bans, "fetch")
-    bans.forEach((ban) => rateLimitManager.resolver(guild.members, "unban", ban.user));
+    const bans = await limiter.schedule(() => guild.bans.fetch());
+    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user)));
 
-    rateLimitManager.resolver(guild, "setAFKChannel", null);
-    rateLimitManager.resolver(guild, "setAFKTimeout", 60 * 5);
-    rateLimitManager.resolver(guild, "setIcon", null);
-    rateLimitManager.resolver(guild, "setBanner", null);
-    rateLimitManager.resolver(guild, "setSplash", null);
-    rateLimitManager.resolver(guild, "setDefaultMessageNotifications", GuildDefaultMessageNotifications.OnlyMentions);
-    rateLimitManager.resolver(guild, "setWidgetSettings", { enabled: false, channel: null });
+    await limiter.schedule(() => guild.setAFKChannel(null));
+    await limiter.schedule(() => guild.setAFKTimeout(60 * 5));
+    await limiter.schedule(() => guild.setIcon(null));
+    await limiter.schedule(() => guild.setBanner(null));
+    await limiter.schedule(() => guild.setSplash(null));
+    await limiter.schedule(() => guild.setDefaultMessageNotifications(GuildDefaultMessageNotifications.OnlyMentions));
+    await limiter.schedule(() => guild.setWidgetSettings({ enabled: false, channel: null }));
 
     if (!guild.features.includes(GuildFeature.Community)) {
-        rateLimitManager.resolver(guild, "setExplicitContentFilter", GuildExplicitContentFilter.Disabled);
-        rateLimitManager.resolver(guild, "setVerificationLevel", GuildVerificationLevel.None);
+        await limiter.schedule(() => guild.setExplicitContentFilter(GuildExplicitContentFilter.Disabled));
+        await limiter.schedule(() => guild.setVerificationLevel(GuildVerificationLevel.None));
     }
 
-    rateLimitManager.resolver(guild, "setSystemChannel", null);
-    rateLimitManager.resolver(guild, "setSystemChannelFlags", [
+    await limiter.schedule(() => guild.setSystemChannel(null));
+    await limiter.schedule(() => guild.setSystemChannelFlags([
         GuildSystemChannelFlags.SuppressGuildReminderNotifications,
         GuildSystemChannelFlags.SuppressJoinNotifications,
         GuildSystemChannelFlags.SuppressPremiumSubscriptions
-    ]);
+    ]));
 }
