@@ -149,7 +149,7 @@ async function load(backup, guild, options) {
         throw new Error("Speed option must be a string or number");
     }
 
-    const limiter = new Bottleneck({ minTime: speed, maxConcurrent: 1 });
+    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
 
     limiter.on("error", async (error) => {
         console.error(`ERROR: ${error.message}`);
