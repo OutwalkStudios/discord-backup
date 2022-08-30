@@ -54,10 +54,10 @@ async function create(guild, options = {}) {
         backupId: null,
         maxMessagesPerChannel: 10,
         jsonSave: true,
-        jsonBeautify: true,
+        jsonBeautify: false,
         doNotBackup: [],
         backupMembers: false,
-        saveImages: "",
+        saveImages: true,
         ...options
     };
 
@@ -141,7 +141,7 @@ async function create(guild, options = {}) {
 async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
-    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, mode: "auto", ...options };
+    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, ...options };
 
     const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
 
@@ -149,8 +149,16 @@ async function load(backup, guild, options) {
         throw new Error("Mode option must be a string or number");
     }
 
-    const modes = { slow: 1500, fast: 250, auto: 750 };
-    const limiter = new Bottleneck({ minTime: modes[options.mode], maxConcurrent: 1 });
+    const limiter = new Bottleneck({ minTime: speed, maxConcurrent: 1 });
+
+    limiter.on("error", async (error) => {
+        console.error(`ERROR: ${error.message}`);
+        await limiter.stop();
+    });
+
+    limiter.on("failed", (error, jobInfo) => {
+        console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
+    });
 
     if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
         await clearGuild(guild, limiter);

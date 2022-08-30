@@ -76,17 +76,23 @@ export async function fetchChannelMessages(channel, options) {
             if (message.cleanContent.length > 2000) return;
 
             const files = await Promise.all(message.attachments.map(async (attachment) => {
-                let attach = attachment.url;
-
-                if (attachment.url && ["png", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi"].includes(attachment.url)) {
+                if (attachment.url && ["png", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi"].includes(attachment.url.split(".").pop())) {
                     if (options.saveImages && options.saveImages == "base64") {
                         const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
                         const buffer = Buffer.from(response.data, "binary").toString("base64");
-                        if (Buffer.byteLength(buffer) <= 8000000) attach = buffer;
+                        const bufferSize = Buffer.byteLength(buffer);
+
+                        if (bufferSize > 8000000) return null;
+                        return { name: attachment.name, attachment: buffer };
+
+                    } else if (options.saveImages) {
+                        const response = await axios.head(attachment.url);
+                        const imageSize = response.headers["content-length"];
+                        if (imageSize > 8000000) return null;
                     }
                 }
 
-                return { name: attachment.name, attachment: attach };
+                return { name: attachment.name, attachment: attachment.url };
             }));
 
             messages.push({
@@ -94,7 +100,7 @@ export async function fetchChannelMessages(channel, options) {
                 avatar: message.author.displayAvatarURL(),
                 content: message.cleanContent,
                 embeds: message.embeds,
-                files: files,
+                files: files.filter((file) => file != null),
                 pinned: message.pinned,
                 sentAt: message.createdAt.toISOString()
             });
