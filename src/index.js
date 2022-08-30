@@ -145,8 +145,8 @@ async function load(backup, guild, options) {
 
     const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
 
-    if (typeof options.mode != "string" && typeof options.mode != "number") {
-        throw new Error("Mode option must be a string or number");
+    if (typeof options.speed != "number") {
+        throw new Error("Speed option must be a string or number");
     }
 
     const limiter = new Bottleneck({ minTime: speed, maxConcurrent: 1 });
