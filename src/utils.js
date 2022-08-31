@@ -254,7 +254,7 @@ export async function loadChannel(channelData, guild, category, options, limiter
 
         if (channelData.threads.length > 0) {
             channelData.threads.forEach(async (threadData) => {
-                await limiter.schedule(() => channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration }));
+                const thread = await limiter.schedule(() => channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration }));
                 if (webhook) await loadMessages(thread, threadData.messages, webhook);
             });
         }
