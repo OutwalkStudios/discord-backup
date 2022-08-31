@@ -80,15 +80,8 @@ export async function fetchChannelMessages(channel, options) {
                     if (options.saveImages && options.saveImages == "base64") {
                         const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
                         const buffer = Buffer.from(response.data, "binary").toString("base64");
-                        const bufferSize = Buffer.byteLength(buffer);
 
-                        if (bufferSize > 8000000) return null;
                         return { name: attachment.name, attachment: buffer };
-
-                    } else if (options.saveImages) {
-                        const response = await axios.head(attachment.url);
-                        const imageSize = response.headers["content-length"];
-                        if (imageSize > 8000000) return null;
                     }
                 }
 
@@ -100,7 +93,7 @@ export async function fetchChannelMessages(channel, options) {
                 avatar: message.author.displayAvatarURL(),
                 content: message.cleanContent,
                 embeds: message.embeds,
-                files: files.filter((file) => file != null),
+                files: files,
                 pinned: message.pinned,
                 sentAt: message.createdAt.toISOString()
             });
@@ -199,8 +192,9 @@ export async function loadChannel(channelData, guild, category, options, limiter
 
                 if (message.pinned && sent) await limiter.schedule(() => sent.pin());
             } catch (error) {
-                console.error(error.message);
-                console.log(message);
+                /* ignore errors where it request entity is too large */
+                if(error.message == "Request entity too large") return;
+                console.error(error);
             }
         }
 
