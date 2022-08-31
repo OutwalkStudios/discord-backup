@@ -42,6 +42,8 @@ export async function getEmojis(guild, options) {
     const emojis = [];
 
     guild.emojis.cache.forEach(async (emoji) => {
+        if (emojis.length >= 50) return;
+
         const data = { name: emoji.name };
 
         if (options.saveImages && options.saveImages == "base64") {
@@ -54,7 +56,7 @@ export async function getEmojis(guild, options) {
         emojis.push(data);
     });
     
-    return (emojis.length > 50) ? emojis.splice(50) : emojis;
+    return emojis;
 }
 
 /* returns an array with the channels of the guild */
