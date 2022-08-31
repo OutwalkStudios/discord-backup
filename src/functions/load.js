@@ -3,7 +3,6 @@ import { loadCategory, loadChannel } from "../utils";
 
 /* restores the guild configuration */
 export async function loadConfig(guild, backup, limiter) {
-
     if (backup.name) {
         await limiter.schedule(() => guild.setName(backup.name));
     }
@@ -43,20 +42,26 @@ export async function loadConfig(guild, backup, limiter) {
 /* restore the guild roles */
 export async function loadRoles(guild, backup, limiter) {
     for (let role of backup.roles) {
-        if (role.isEveryone) {
-            await limiter.schedule(() => guild.roles.edit(guild.roles.everyone, {
-                permissions: BigInt(role.permissions),
-                mentionable: role.mentionable
-            }));
-        } else {
-            await limiter.schedule(() => guild.roles.create({
-                name: role.name,
-                color: role.color,
-                hoist: role.hoist,
-                permissions: BigInt(role.permissions),
-                mentionable: role.mentionable
-            }));
+        try {
+            if (role.isEveryone) {
+                await limiter.schedule(() => guild.roles.edit(guild.roles.everyone, {
+                    permissions: BigInt(role.permissions),
+                    mentionable: role.mentionable
+                }));
+            } else {
+                await limiter.schedule(() => guild.roles.create({
+                    name: role.name,
+                    color: role.color,
+                    hoist: role.hoist,
+                    permissions: BigInt(role.permissions),
+                    mentionable: role.mentionable
+                }));
+            }
+        } catch (error) {
+            console.error(error.message);
         }
+
+
     }
 }
 
@@ -78,18 +83,27 @@ export async function loadChannels(guild, backup, options, limiter) {
 /* restore the afk configuration */
 export async function loadAFk(guild, backup, limiter) {
     if (backup.afk) {
-        await limiter.schedule(() => guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == ChannelType.GuildVoice)));
-        await limiter.schedule(() => guild.setAFKTimeout(backup.afk.timeout));
+        try {
+            await limiter.schedule(() => guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == ChannelType.GuildVoice)));
+            await limiter.schedule(() => guild.setAFKTimeout(backup.afk.timeout));
+        } catch (error) {
+            console.error(error.message);
+        }
+
     }
 }
 
 /* restore guild emojis */
 export async function loadEmojis(guild, backup, limiter) {
     for (let emoji of backup.emojis) {
-        if (emoji.url) {
-            await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
-        } else if (emoji.base64) {
-            await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }))
+        try {
+            if (emoji.url) {
+                await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
+            } else if (emoji.base64) {
+                await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }))
+            }
+        } catch (error) {
+            console.error(error.message);
         }
     }
 }
@@ -97,17 +111,25 @@ export async function loadEmojis(guild, backup, limiter) {
 /* restore guild bans */
 export async function loadBans(guild, backup, limiter) {
     for (let ban of backup.bans) {
-        await limiter.schedule(() => guild.members.ban(ban.id, { reason: ban.reason }));
+        try {
+            await limiter.schedule(() => guild.members.ban(ban.id, { reason: ban.reason }));
+        } catch (error) {
+            console.error(error.message);
+        }
     }
 }
 
 /* restore embedChannel configuraion */
 export async function loadEmbedChannel(guild, backup, limiter) {
     if (backup.widget.channel) {
-        await limiter.schedule(() => guild.setWidgetSettings({
-            enabled: backup.widget.enabled,
-            channel: guild.channels.cache.find((channel) => channel.name == backup.widget.channel)
-        }));
+        try {
+            await limiter.schedule(() => guild.setWidgetSettings({
+                enabled: backup.widget.enabled,
+                channel: guild.channels.cache.find((channel) => channel.name == backup.widget.channel)
+            }));
+        } catch (error) {
+            console.error(error.message);
+        }
     }
 }
 
