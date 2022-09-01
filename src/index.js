@@ -152,11 +152,16 @@ async function load(backup, guild, options) {
     const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
 
     limiter.on("error", async (error) => {
+        /* ignore errors where it request entity is too large */
+        if(error.message == "Request entity too large") return;
+
         console.error(`ERROR: ${error.message}`);
-        await limiter.stop();
     });
 
     limiter.on("failed", (error, jobInfo) => {
+        /* ignore errors where it request entity is too large */
+        if (error.message == "Request entity too large") return;
+        
         console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
     });
 
