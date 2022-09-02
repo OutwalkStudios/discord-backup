@@ -58,6 +58,7 @@ async function create(guild, options = {}) {
         doNotBackup: [],
         backupMembers: false,
         saveImages: true,
+        speed: 250,
         ...options
     };
 

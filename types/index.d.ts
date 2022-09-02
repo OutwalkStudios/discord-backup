@@ -1,12 +1,14 @@
 import type { Guild } from "discord.js";
 
-export declare interface Options {
+export declare interface CreateOptions {
     backupId?: string,
     maxMessagesPerChannel?: number,
     jsonSave?: boolean,
     jsonBeautify?: boolean,
     doNotBackup?: string[],
-    saveImages?: string,
+    backupMembers?: boolean,
+    saveImages?: boolean | string,
+    clearGuildBeforeRestore: boolean
     speed?: number
 }
 
