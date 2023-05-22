@@ -260,16 +260,16 @@ export async function loadChannel(channelData, guild, category, options, limiter
 /* delete all roles, channels, emojis, etc of a guild */
 export async function clearGuild(guild, limiter) {
     const roles = guild.roles.cache.filter((role) => !role.managed && role.editable && role.id != guild.id);
-    roles.forEach(async (role) => await limiter.schedule(() => role.delete()));
+    roles.forEach(async (role) => await limiter.schedule(() => role.delete().catch((e) => {})));
 
-    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete()));
-    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete()));
+    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete().catch((e) => {})));
+    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete().catch((e) => {})));
 
     const webhooks = await limiter.schedule(() => guild.fetchWebhooks());
-    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete()));
+    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete().catch((e) => {})));
 
     const bans = await limiter.schedule(() => guild.bans.fetch());
-    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user)));
+    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user).catch((e) => {})));
 
     await limiter.schedule(() => guild.setAFKChannel(null));
     await limiter.schedule(() => guild.setAFKTimeout(60 * 5));
