@@ -5,15 +5,16 @@ import {
     GuildExplicitContentFilter,
     GuildVerificationLevel,
     GuildSystemChannelFlags,
-    OverwriteType
+    OverwriteType,
+    GuildPremiumTier
 } from "discord.js";
 import axios from "axios";
 
 const MAX_BITRATE_PER_TIER = {
-    NONE: 64000,
-    TIER_1: 128000,
-    TIER_2: 256000,
-    TIER_3: 384000
+    [GuildPremiumTier.None]: 64000,
+    [GuildPremiumTier.Tier1]: 128000,
+    [GuildPremiumTier.Tier2]: 256000,
+    [GuildPremiumTier.Tier3]: 384000
 };
 
 /* gets the permissions for a channel */
@@ -215,7 +216,7 @@ export async function loadChannel(channelData, guild, category, options, limiter
         const bitrates = Object.values(MAX_BITRATE_PER_TIER);
 
         while (bitrate > MAX_BITRATE_PER_TIER[guild.premiumTier]) {
-            bitrate = bitrates[Object.keys(MAX_BITRATE_PER_TIER).indexOf(guild.premiumTier) - 1];
+            bitrate = bitrates[guild.premiumTier];
         }
 
         createOptions.bitrate = bitrate;
