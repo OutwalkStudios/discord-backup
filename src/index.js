@@ -6,6 +6,7 @@ import loadFunctions from "./functions/load";
 import { clearGuild } from "./utils";
 import path from "path";
 import fs from "fs";
+import resolve from "@rollup/plugin-node-resolve";
 
 let backups = `${__dirname}/backups`;
 if (!fs.existsSync(backups)) fs.mkdirSync(backups);
@@ -140,47 +141,50 @@ async function create(guild, options = {}) {
 
 /* loads a backup for a guild */
 async function load(backup, guild, options) {
-    if (!guild) throw new Error("Invalid Guild!");
+    return  new Promise(async (resolve, reject) => {
+        if (!guild) throw new Error("Invalid Guild!");
 
-    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, ...options };
+        options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, ...options };
 
-    const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
+        const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
 
-    if (typeof options.speed != "number") {
-        throw new Error("Speed option must be a string or number");
-    }
+        if (typeof options.speed != "number") {
+            throw new Error("Speed option must be a string or number");
+        }
 
-    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
+        const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
 
-    limiter.on("error", async (error) => {
-        /* ignore errors where it request entity is too large */
-        if(error.message == "Request entity too large") return;
+        limiter.on("error", async (error) => {
+            /* ignore errors where it request entity is too large */
+            if(error.message == "Request entity too large") reject(error);
 
-        console.error(`ERROR: ${error.message}`);
+            console.error(`ERROR: ${error.message}`);
+        });
+
+        limiter.on("failed", (error, jobInfo) => {
+            /* ignore errors where it request entity is too large */
+            if (error.message == "Request entity too large") reject(error);
+
+            console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
+        });
+
+        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+            await clearGuild(guild, limiter);
+        }
+
+        await Promise.all([
+            loadFunctions.loadConfig(guild, backupData, limiter),
+            loadFunctions.loadRoles(guild, backupData, limiter),
+            loadFunctions.loadChannels(guild, backupData, options, limiter),
+            loadFunctions.loadAFk(guild, backupData, limiter),
+            loadFunctions.loadEmojis(guild, backupData, limiter),
+            loadFunctions.loadBans(guild, backupData, limiter),
+            loadFunctions.loadEmbedChannel(guild, backupData, limiter)
+        ]);
+
+        resolve(backupData);
+
     });
-
-    limiter.on("failed", (error, jobInfo) => {
-        /* ignore errors where it request entity is too large */
-        if (error.message == "Request entity too large") return;
-        
-        console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
-    });
-
-    if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-        await clearGuild(guild, limiter);
-    }
-
-    await Promise.all([
-        loadFunctions.loadConfig(guild, backupData, limiter),
-        loadFunctions.loadRoles(guild, backupData, limiter),
-        loadFunctions.loadChannels(guild, backupData, options, limiter),
-        loadFunctions.loadAFk(guild, backupData, limiter),
-        loadFunctions.loadEmojis(guild, backupData, limiter),
-        loadFunctions.loadBans(guild, backupData, limiter),
-        loadFunctions.loadEmbedChannel(guild, backupData, limiter)
-    ]);
-
-    return backupData;
 }
 
 /* removes a backup */
