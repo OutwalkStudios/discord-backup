@@ -6,6 +6,10 @@ import loadFunctions from "./functions/load";
 import { clearGuild } from "./utils";
 import path from "path";
 import fs from "fs";
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 let backups = `${__dirname}/backups`;
 if (!fs.existsSync(backups)) fs.mkdirSync(backups);
