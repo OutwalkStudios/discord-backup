@@ -10,6 +10,7 @@ export async function getBans(guild) {
 
 /* returns an array with the members of the guild */
 export async function getMembers(guild) {
+    const members = await guild.members.fetch(); // Make sure we fetch all members
     return guild.members.cache.map((member) => ({
         userId: member.user.id,
         username: member.user.username,
