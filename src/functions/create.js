@@ -14,7 +14,7 @@ export async function getMembers(guild) {
         userId: member.user.id,
         username: member.user.username,
         discriminator: member.user.discriminator,
-        avatarUrl: member.user.avatarUrl(),
+        avatarUrl: member.user.avatarURL(),
         joinedTimestamp: member.joinedTimestamp,
         roles: member.roles.cache.map((role) => role.id),
         bot: member.user.bot
