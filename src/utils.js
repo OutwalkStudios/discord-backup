@@ -291,4 +291,9 @@ export async function clearGuild(guild, limiter) {
         GuildSystemChannelFlags.SuppressJoinNotifications,
         GuildSystemChannelFlags.SuppressPremiumSubscriptions
     ]));
+
+    await limiter.schedule(() => guild.setPremiumProgressBarEnabled(false));
+
+    const autoModRules = await limiter.schedule(() => guild.autoModerationRules.fetch());
+    autoModRules.forEach(async (autoModRule) => await limiter.schedule(() => autoModRule.delete().catch((e) => {})));
 }

@@ -28,6 +28,7 @@ export async function getRoles(guild) {
         .filter((role) => !role.managed)
         .sort((a, b) => b.position - a.position)
         .map((role) => ({
+            oldId: role.id,
             name: role.name,
             color: role.hexColor,
             hoist: role.hoist,
@@ -75,11 +76,14 @@ export async function getChannels(guild, options) {
         const children = category.children.cache.sort((a, b) => a.position - b.position).toJSON();
 
         for (let child of children) {
+            let channelData;
             if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildNews) {
-                const channelData = await fetchTextChannelData(child, options);
-                categoryData.children.push(channelData);
+                channelData = await fetchTextChannelData(child, options);
             } else {
-                const channelData = fetchVoiceChannelData(child);
+                channelData = fetchVoiceChannelData(child);
+            }
+            if (channelData) {
+                channelData.oldId = child.id;
                 categoryData.children.push(channelData);
             }
         }
@@ -101,11 +105,14 @@ export async function getChannels(guild, options) {
         .toJSON();
 
     for (let channel of others) {
+        let channelData;
         if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildNews) {
-            const channelData = await fetchTextChannelData(channel, options);
-            channels.others.push(channelData);
+            channelData = await fetchTextChannelData(channel, options);
         } else {
-            const channelData = fetchVoiceChannelData(channel);
+            channelData = fetchVoiceChannelData(channel);
+        }
+        if (channelData) {
+            channelData.oldId = channel.id;
             channels.others.push(channelData);
         }
     }

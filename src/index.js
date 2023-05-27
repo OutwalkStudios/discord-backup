@@ -70,12 +70,15 @@ async function create(guild, options = {}) {
         name: guild.name,
         verificationLevel: guild.verificationLevel,
         explicitContentFilter: guild.explicitContentFilter,
+        systemChannel: guild.systemChannel ? { name: guild.systemChannel.name, flags: guild.systemChannelFlags } : null,
+        premiumProgressBarEnabled: guild.premiumProgressBarEnabled, 
         defaultMessageNotifications: guild.defaultMessageNotifications,
         afk: guild.afkChannel ? { name: guild.afkChannel.name, timeout: guild.afkTimeout } : null,
         widget: {
             enabled: guild.widgetEnabled,
             channel: guild.widgetChannel ? guild.widgetChannel.name : null
         },
+        autoModerationRules: [],
         channels: { categories: [], others: [] },
         roles: [],
         bans: [],
@@ -85,6 +88,38 @@ async function create(guild, options = {}) {
         guildID: guild.id,
         id: options.backupId ?? SnowflakeUtil.generate(Date.now())
     };
+
+    const autoModRules = await guild.autoModerationRules.fetch({ cache: false });
+    autoModRules.each((autoModRule) => {
+        let actions = [];
+        autoModRule.actions.forEach((action) => {
+            let copyAction = JSON.parse(JSON.stringify(action));
+            if (copyAction.metadata.channelId) {
+                const channel = guild.channels.cache.get(copyAction.metadata.channelId);
+                if (channel) {
+                    copyAction.metadata.channelName = channel.name;
+                    actions.push(copyAction);
+                }
+            } else {
+                actions.push(copyAction);
+            }
+        });
+
+        backup.autoModerationRules.push({
+            name: autoModRule.name,
+            eventType: autoModRule.eventType,
+            triggerType: autoModRule.triggerType,
+            triggerMetadata: autoModRule.triggerMetadata,
+            actions: actions,
+            enabled: autoModRule.enabled,
+            exemptRoles: autoModRule.exemptRoles.map((role) => {
+                return { id: role.id, name: role.name };
+            }),
+            exemptChannels: autoModRule.exemptChannels.map((channel) => {
+                return { id: channel.id, name: channel.name };
+            }),
+        });
+    });
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
@@ -146,7 +181,7 @@ async function create(guild, options = {}) {
 async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
-    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, ...options };
+    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, doNotLoad: [], ...options };
 
     const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
 
@@ -170,19 +205,51 @@ async function load(backup, guild, options) {
         console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
     });
 
-    if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-        await clearGuild(guild, limiter);
+    // Main part of the backup restoration:
+    if (!options || !(options.doNotLoad || []).includes("main")) {
+        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+            console.log("Stage: Clear Guild");
+            await clearGuild(guild, limiter);
+        }
+
+        // Load base config:
+        console.log("Stage: Load base config");
+        await Promise.all([
+            loadFunctions.loadConfig(guild, backupData.data, limiter),
+            loadFunctions.loadBans(guild, backupData.data, limiter)
+        ]);
+
+        // Load roles:
+        console.log("Stage: Load roles");
+        await loadFunctions.loadRoles(guild, backupData.data, limiter);
+
+        // Load channels:
+        console.log("Stage: Load channels");
+        await loadFunctions.loadChannels(guild, backupData.data, options, limiter);
+
+        // Load config, which requires channels:
+        console.log("Stage: Load final config");
+        await Promise.all([
+            loadFunctions.loadAFk(guild, backupData.data, limiter),
+            loadFunctions.loadEmbedChannel(guild, backupData.data, limiter),
+            loadFunctions.loadAutoModRules(guild, backupData.data, limiter),
+            loadFunctions.loadFinalSettings(guild, backupData.data, limiter)
+        ]);
+
+        // Assign roles:
+        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
+            console.log("Stage: Assign Roles");
+            await loadFunctions.assignRolesToMembers(guild, backupData.data, limiter);
+        }
     }
 
-    await Promise.all([
-        loadFunctions.loadConfig(guild, backupData, limiter),
-        loadFunctions.loadRoles(guild, backupData, limiter),
-        loadFunctions.loadChannels(guild, backupData, options, limiter),
-        loadFunctions.loadAFk(guild, backupData, limiter),
-        loadFunctions.loadEmojis(guild, backupData, limiter),
-        loadFunctions.loadBans(guild, backupData, limiter),
-        loadFunctions.loadEmbedChannel(guild, backupData, limiter)
-    ]);
+    // Restore Emojis:
+    if (!options || !(options.doNotLoad || []).includes("emojis")) {
+        console.log("Stage: Restore Emojis");
+        await loadFunctions.loadEmojis(guild, backupData.data, limiter);
+    }
+
+    console.log("Operation complete.");
 
     return backupData;
 }

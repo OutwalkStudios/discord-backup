@@ -8,7 +8,12 @@ import type {
     VoiceBasedChannelTypes,
     ThreadChannelType,
     Embed,
-    ThreadAutoArchiveDuration
+    ThreadAutoArchiveDuration,
+    SystemChannelFlagsResolvable,
+    AutoModerationRuleEventType,
+    AutoModerationRuleTriggerType,
+    AutoModerationTriggerMetadata,
+    AutoModerationActionType
 } from "discord.js";
 
 export declare interface CreateOptions {
@@ -26,6 +31,12 @@ export declare interface LoadOptions {
     clearGuildBeforeRestore?: boolean;
     maxMessagesPerChannel?: number;
     speed?: number;
+    doNotLoad?: string[];
+}
+
+export declare interface SystemChannelData {
+    name: string;
+    flags: SystemChannelFlagsResolvable;
 }
 
 export declare interface AfkData {
@@ -46,6 +57,7 @@ export declare interface ChannelPermissionsData {
 }
 
 export declare interface BaseChannelData {
+    oldId: string;
     type: TextBasedChannelTypes | VoiceBasedChannelTypes | ThreadChannelType;
     name: string;
     parent?: string;
@@ -99,6 +111,7 @@ export declare interface ChannelsData {
 }
 
 export declare interface RoleData {
+    oldId: string;
     name: string;
     color: `#${string}`;
     hoist: boolean;
@@ -129,6 +142,39 @@ export declare interface MemberData {
     bot: boolean;
 }
 
+export declare interface AutoModerationActionMetadataData { // Same as AutoModerationActionMetadata + channelName
+    channelId?: Snowflake;
+    channelName?: string;
+    durationSeconds?: number;
+    customMessage?: string;
+}
+
+export declare interface AutoModRuleActionData {
+    type: AutoModerationActionType;
+    metadata: AutoModerationActionMetadataData;
+}
+
+export declare interface ExemptRoleData {
+    id: string;
+    name: string;
+}
+
+export declare interface ExemptChannelData {
+    id: string;
+    name: string;
+}
+
+export declare interface AutoModRuleData {
+    name: string;
+    eventType: AutoModerationRuleEventType;
+    triggerType: AutoModerationRuleTriggerType;
+    triggerMetadata: AutoModerationTriggerMetadata;
+    actions: AutoModRuleActionData[];
+    enabled: boolean;
+    exemptRoles: ExemptRoleData[],
+    exemptChannels: ExemptChannelData[],
+}
+
 export declare interface BackupData {
     name: string;
     iconURL?: string;
@@ -136,12 +182,15 @@ export declare interface BackupData {
     verificationLevel: GuildVerificationLevel;
     explicitContentFilter: GuildExplicitContentFilter;
     defaultMessageNotifications: GuildDefaultMessageNotifications | number;
+    systemChannel?: SystemChannelData;
     afk?: AfkData;
+    premiumProgressBarEnabled?: boolean;
     widget: WidgetData;
     splashURL?: string;
     splashBase64?: string;
     bannerURL?: string;
     bannerBase64?: string;
+    autoModerationRules: AutoModRuleData[];
     channels: ChannelsData;
     roles: RoleData[];
     bans: BanData[];
