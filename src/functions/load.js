@@ -1,4 +1,4 @@
-import { GuildFeature } from "discord.js";
+import { GuildFeature, ChannelType } from "discord.js";
 import { loadCategory, loadChannel } from "../utils";
 
 /* restores the guild configuration */
