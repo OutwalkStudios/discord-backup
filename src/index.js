@@ -232,7 +232,6 @@ async function load(backup, guild, options) {
 
         // Assign roles:
         if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
-            console.log("Stage: Assign Roles");
             await loadFunctions.assignRolesToMembers(guild, backupData, limiter);
         }
     }
