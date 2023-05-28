@@ -10,11 +10,12 @@ export async function getBans(guild) {
 
 /* returns an array with the members of the guild */
 export async function getMembers(guild) {
+    const members = await guild.members.fetch(); // Make sure we fetch all members
     return guild.members.cache.map((member) => ({
         userId: member.user.id,
         username: member.user.username,
         discriminator: member.user.discriminator,
-        avatarUrl: member.user.avatarUrl(),
+        avatarUrl: member.user.avatarURL(),
         joinedTimestamp: member.joinedTimestamp,
         roles: member.roles.cache.map((role) => role.id),
         bot: member.user.bot
@@ -27,6 +28,7 @@ export async function getRoles(guild) {
         .filter((role) => !role.managed)
         .sort((a, b) => b.position - a.position)
         .map((role) => ({
+            oldId: role.id,
             name: role.name,
             color: role.hexColor,
             hoist: role.hoist,
@@ -74,11 +76,14 @@ export async function getChannels(guild, options) {
         const children = category.children.cache.sort((a, b) => a.position - b.position).toJSON();
 
         for (let child of children) {
+            let channelData;
             if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildNews) {
-                const channelData = await fetchTextChannelData(child, options);
-                categoryData.children.push(channelData);
+                channelData = await fetchTextChannelData(child, options);
             } else {
-                const channelData = fetchVoiceChannelData(child);
+                channelData = fetchVoiceChannelData(child);
+            }
+            if (channelData) {
+                channelData.oldId = child.id;
                 categoryData.children.push(channelData);
             }
         }
@@ -100,11 +105,14 @@ export async function getChannels(guild, options) {
         .toJSON();
 
     for (let channel of others) {
+        let channelData;
         if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildNews) {
-            const channelData = await fetchTextChannelData(channel, options);
-            channels.others.push(channelData);
+            channelData = await fetchTextChannelData(channel, options);
         } else {
-            const channelData = fetchVoiceChannelData(channel);
+            channelData = fetchVoiceChannelData(channel);
+        }
+        if (channelData) {
+            channelData.oldId = channel.id;
             channels.others.push(channelData);
         }
     }
