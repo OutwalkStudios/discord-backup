@@ -122,6 +122,7 @@ await backup.load(backupData, guild, {
 **clearGuildBeforeRestore**: Whether to clear the guild (roles, channels, etc... will be deleted) before the backup restoration (recommended).  
 **maxMessagesPerChannel**: Maximum of messages to restore in each channel. "0" won't restore any messages.
 **speed**: What speed to run at, default is 250 (measured in ms)
+**doNotLoad**: Things you dont want to restore. Available items are: `main`, `roleAssignments`, `emojis`
 
 ---
 
