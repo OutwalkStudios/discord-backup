@@ -10,8 +10,9 @@ export async function getBans(guild) {
 
 /* returns an array with the members of the guild */
 export async function getMembers(guild) {
-    const members = await guild.members.fetch(); // Make sure we fetch all members
-    return guild.members.cache.map((member) => ({
+    const members = await guild.members.fetch();
+
+    return members.map((member) => ({
         userId: member.user.id,
         username: member.user.username,
         discriminator: member.user.discriminator,
@@ -24,7 +25,9 @@ export async function getMembers(guild) {
 
 /* returns an array with the roles of the guild */
 export async function getRoles(guild) {
-    return guild.roles.cache
+    const roles = await guild.roles.fetch();
+
+    return roles
         .filter((role) => !role.managed)
         .sort((a, b) => b.position - a.position)
         .map((role) => ({
@@ -41,9 +44,10 @@ export async function getRoles(guild) {
 
 /* returns an array with the emojis of the guild */
 export async function getEmojis(guild, options) {
-    const emojis = [];
+    const emojis = await guild.emojis.fetch();
+    const collectedEmojis = [];
 
-    guild.emojis.cache.forEach(async (emoji) => {
+    emojis.forEach(async (emoji) => {
         if (emojis.length >= 50) return;
 
         const data = { name: emoji.name };
@@ -55,17 +59,18 @@ export async function getEmojis(guild, options) {
             data.url = emoji.url;
         }
 
-        emojis.push(data);
+        collectedEmojis.push(data);
     });
-    
-    return emojis;
+
+    return collectedEmojis;
 }
 
 /* returns an array with the channels of the guild */
 export async function getChannels(guild, options) {
-    const channels = { categories: [], others: [] };
+    const channels = await guild.channels.fetch();
+    const collectedChannels = { categories: [], others: [] };
 
-    const categories = guild.channels.cache
+    const categories = channels
         .filter((channel) => channel.type == ChannelType.GuildCategory)
         .sort((a, b) => a.position - b.position)
         .toJSON();
@@ -88,10 +93,10 @@ export async function getChannels(guild, options) {
             }
         }
 
-        channels.categories.push(categoryData);
+        collectedChannels.categories.push(categoryData);
     }
 
-    const others = guild.channels.cache
+    const others = channels
         .filter((channel) => {
             return (
                 !channel.parent &&
@@ -113,11 +118,11 @@ export async function getChannels(guild, options) {
         }
         if (channelData) {
             channelData.oldId = channel.id;
-            channels.others.push(channelData);
+            collectedChannels.others.push(channelData);
         }
     }
 
-    return channels;
+    return collectedChannels;
 }
 
 export default {
