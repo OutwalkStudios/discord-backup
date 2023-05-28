@@ -1,6 +1,6 @@
 {
   "name": "@outwalk/discord-backup",
-  "version": "0.4.9",
+  "version": "0.5.0",
   "publishConfig": {
     "access": "public"
   },
@@ -53,6 +53,6 @@
     "bottleneck": "^2.19.5"
   },
   "peerDependencies": {
-    "discord.js": "14.x.x"
+    "discord.js": "^14.x.x"
   }
 }
