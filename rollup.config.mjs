@@ -17,7 +17,7 @@ export default {
         resolve(),
         commonjs(),
         json(),
-        esbuild({ target: "es2022", minify: true })
+        esbuild({ target: "node16", minify: true })
     ],
     external: builtinModules.concat(["discord.js", ...Object.keys(dependencies)])
 };

@@ -5,11 +5,10 @@ import createFunctions from "./functions/create";
 import loadFunctions from "./functions/load";
 import { clearGuild } from "./utils";
 import path from "path";
+import url from "url";
 import fs from "fs";
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 
 let backups = `${__dirname}/backups`;
 if (!fs.existsSync(backups)) fs.mkdirSync(backups);
