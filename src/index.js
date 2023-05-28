@@ -207,48 +207,40 @@ async function load(backup, guild, options) {
     // Main part of the backup restoration:
     if (!options || !(options.doNotLoad || []).includes("main")) {
         if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-            console.log("Stage: Clear Guild");
             await clearGuild(guild, limiter);
         }
 
         // Load base config:
-        console.log("Stage: Load base config");
         await Promise.all([
-            loadFunctions.loadConfig(guild, backupData.data, limiter),
-            loadFunctions.loadBans(guild, backupData.data, limiter)
+            loadFunctions.loadConfig(guild, backupData, limiter),
+            loadFunctions.loadBans(guild, backupData, limiter)
         ]);
 
         // Load roles:
-        console.log("Stage: Load roles");
-        await loadFunctions.loadRoles(guild, backupData.data, limiter);
+        await loadFunctions.loadRoles(guild, backupData, limiter);
 
         // Load channels:
-        console.log("Stage: Load channels");
-        await loadFunctions.loadChannels(guild, backupData.data, options, limiter);
+        await loadFunctions.loadChannels(guild, backupData, options, limiter);
 
         // Load config, which requires channels:
-        console.log("Stage: Load final config");
         await Promise.all([
-            loadFunctions.loadAFk(guild, backupData.data, limiter),
-            loadFunctions.loadEmbedChannel(guild, backupData.data, limiter),
-            loadFunctions.loadAutoModRules(guild, backupData.data, limiter),
-            loadFunctions.loadFinalSettings(guild, backupData.data, limiter)
+            loadFunctions.loadAFk(guild, backupData, limiter),
+            loadFunctions.loadEmbedChannel(guild, backupData, limiter),
+            loadFunctions.loadAutoModRules(guild, backupData, limiter),
+            loadFunctions.loadFinalSettings(guild, backupData, limiter)
         ]);
 
         // Assign roles:
         if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
             console.log("Stage: Assign Roles");
-            await loadFunctions.assignRolesToMembers(guild, backupData.data, limiter);
+            await loadFunctions.assignRolesToMembers(guild, backupData, limiter);
         }
     }
 
     // Restore Emojis:
     if (!options || !(options.doNotLoad || []).includes("emojis")) {
-        console.log("Stage: Restore Emojis");
-        await loadFunctions.loadEmojis(guild, backupData.data, limiter);
+        await loadFunctions.loadEmojis(guild, backupData, limiter);
     }
-
-    console.log("Operation complete.");
 
     return backupData;
 }

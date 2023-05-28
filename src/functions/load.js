@@ -76,14 +76,12 @@ export async function loadChannels(guild, backup, options, limiter) {
 
         for (let channel of category.children) {
             const createdChannel = await loadChannel(channel, guild, createdCategory, options, limiter);
-            console.log(`Assigning ${channel.oldId} new channel ${createdChannel ? createdChannel.name : "not found"}`);
             if (createdChannel) backup.channelMap[channel.oldId] = createdChannel;
         }
     }
 
     for (let channel of backup.channels.others) {
         const createdChannel = await loadChannel(channel, guild, null, options, limiter);
-        console.log(`Assigning ${channel.oldId} new channel ${createdChannel ? createdChannel.name : "not found"}`);
         if (createdChannel) backup.channelMap[channel.oldId] = createdChannel;
     }
 }
