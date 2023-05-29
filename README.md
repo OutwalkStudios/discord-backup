@@ -43,7 +43,8 @@ await backup.remove(backupId);
 
 ### Fetch
 
-Fetches information from a backup
+Fetches information from a backup.
+The backkup info provides a `data`, `id`, and `size` property.
 
 ```js
 import backup from "@outwalk/discord-backup";
@@ -93,18 +94,22 @@ You can use more options for backup creation:
 import backup from "@outwalk/discord-backup";
 
 await backup.create(guild, {
+    backupId: "mybackup"
     maxMessagesPerChannel: 10,
     jsonSave: false,
     jsonBeautify: true,
-    doNotBackup: [ "roles",  "channels", "emojis", "bans" ],
-    saveImages: "base64"
+    doNotBackup: ["roles", "channels", "emojis", "bans"],
+    backupMembers: false,
+    saveImages: "base64",
 });
 ```
 
+**backupId**: Specify an Id to be used for the backup, if not provided a random one will be generated.
 **maxMessagesPerChannel**: Maximum of messages to save in each channel. "0" won't save any messages.  
 **jsonSave**: Whether to save the backup into a json file. You will have to save the backup data in your own db to load it later.  
 **jsonBeautify**: Whether you want your json backup pretty formatted.
-**doNotBackup**: Things you don't want to backup. Available items are: `roles`, `channels`, `emojis`, `bans`.  
+**doNotBackup**: Things you don't want to backup. Available items are: `roles`, `channels`, `emojis`, `bans`.
+**backupMembers**: Wether or not to save information on the members of the server.
 **saveImages**: How to save images like guild icon and emojis. Set to "url" by default, restoration may not work if the old server is deleted. So, `url` is recommended if you want to clone a server (or if you need very light backups), and `base64` if you want to backup a server. Save images as base64 creates heavier backups.
 
 ### Load [advanced]
@@ -115,14 +120,18 @@ As you can see, you're able to load a backup from your own data instead of from 
 import backup from "@outwalk/discord-backup";
 
 await backup.load(backupData, guild, {
-    clearGuildBeforeRestore: true
+    clearGuildBeforeRestore: true,
+    maxMessagesPerChannel: 10,
+    speed: 250,
+    doNotLoad: ["roleAssignments", "emojis"]
 });
 ```
 
 **clearGuildBeforeRestore**: Whether to clear the guild (roles, channels, etc... will be deleted) before the backup restoration (recommended).  
 **maxMessagesPerChannel**: Maximum of messages to restore in each channel. "0" won't restore any messages.
 **speed**: What speed to run at, default is 250 (measured in ms)
-**doNotLoad**: Things you dont want to restore. Available items are: `main`, `roleAssignments`, `emojis`
+**doNotLoad**: Things you dont want to restore. Available items are: `main`, `roleAssignments`, `emojis`.
+`main` will prevent loading the main backup, `roleAssignments` will prevent reassigning roles to members, and `emojis` will prevent restoring emojis.
 
 ---
 
