@@ -24,7 +24,6 @@ export declare interface CreateOptions {
     doNotBackup?: string[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
-    clearGuildBeforeRestore?: boolean;
 }
 
 export declare interface LoadOptions {
@@ -201,6 +200,13 @@ export declare interface BackupData {
     id: Snowflake;
 }
 
+export declare interface BackupInfo {
+    data: BackupData,
+    id: string,
+    size: number
+}
+
+export declare function fetch(backupId: string): Promise<BackupInfo>;
 export declare function create(guild: Guild, options?: CreateOptions): Promise<BackupData>;
 export declare function load(backup: Object, guild: Guild, options?: LoadOptions): Promise<BackupData>;
 export declare function remove(backupId: string): Promise<void>;
