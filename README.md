@@ -94,7 +94,7 @@ You can use more options for backup creation:
 import backup from "@outwalk/discord-backup";
 
 await backup.create(guild, {
-    backupId: "mybackup"
+    backupId: "mybackup",
     maxMessagesPerChannel: 10,
     jsonSave: false,
     jsonBeautify: true,
