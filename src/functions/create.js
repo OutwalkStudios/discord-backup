@@ -143,6 +143,7 @@ export async function getAutoModerationRules(guild, limiter) {
                     copyAction.metadata.channelName = channel.name;
                     actions.push(copyAction);
                 }
+
             } else {
                 actions.push(copyAction);
             }
@@ -156,7 +157,7 @@ export async function getAutoModerationRules(guild, limiter) {
             actions: actions,
             enabled: rule.enabled,
             exemptRoles: rule.exemptRoles.map((role) => ({ id: role.id, name: role.name })),
-            exemptChaannels: rule.exemptChaannels.map((channel) => ({ id: channel.id, name: channel.name }))
+            exemptChaannels: rule.exemptChannels.map((channel) => ({ id: channel.id, name: channel.name }))
         });
     });
 
