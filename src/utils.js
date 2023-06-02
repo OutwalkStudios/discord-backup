@@ -194,7 +194,7 @@ export async function loadChannel(channelData, guild, category, options, limiter
                 if (message.pinned && sent) await limiter.schedule(() => sent.pin());
             } catch (error) {
                 /* ignore errors where it request entity is too large */
-                if(error.message == "Request entity too large") return;
+                if (error.message == "Request entity too large") return;
                 console.error(error);
             }
         }
@@ -261,16 +261,16 @@ export async function loadChannel(channelData, guild, category, options, limiter
 /* delete all roles, channels, emojis, etc of a guild */
 export async function clearGuild(guild, limiter) {
     const roles = guild.roles.cache.filter((role) => !role.managed && role.editable && role.id != guild.id);
-    roles.forEach(async (role) => await limiter.schedule(() => role.delete().catch((e) => {})));
+    roles.forEach(async (role) => await limiter.schedule(() => role.delete().catch(() => { })));
 
-    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete().catch((e) => {})));
-    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete().catch((e) => {})));
+    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete().catch(() => { })));
+    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete().catch(() => { })));
 
     const webhooks = await limiter.schedule(() => guild.fetchWebhooks());
-    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete().catch((e) => {})));
+    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete().catch(() => { })));
 
     const bans = await limiter.schedule(() => guild.bans.fetch());
-    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user).catch((e) => {})));
+    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user).catch(() => { })));
 
     await limiter.schedule(() => guild.setAFKChannel(null));
     await limiter.schedule(() => guild.setAFKTimeout(60 * 5));
@@ -294,6 +294,6 @@ export async function clearGuild(guild, limiter) {
 
     await limiter.schedule(() => guild.setPremiumProgressBarEnabled(false));
 
-    const autoModRules = await limiter.schedule(() => guild.autoModerationRules.fetch());
-    autoModRules.forEach(async (autoModRule) => await limiter.schedule(() => autoModRule.delete().catch((e) => {})));
+    const rules = await limiter.schedule(() => guild.autoModerationRules.fetch());
+    rules.forEach(async (rule) => await limiter.schedule(() => rule.delete().catch(() => { })));
 }
