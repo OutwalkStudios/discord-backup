@@ -130,10 +130,10 @@ export async function getAutoModerationRules(guild, limiter) {
     const rules = await limiter.schedule(() => guild.autoModerationRules.fetch({ cache: false }));
     const collectedRules = [];
 
-    for (let rule of rules) {
+    rules.forEach((rule) => {
         const actions = [];
 
-        for (let action of rule.actions) {
+        rule.actions.forEach((action) => {
             const copyAction = JSON.parse(JSON.stringify(action));
 
             if (copyAction.metadata.channelId) {
@@ -146,7 +146,7 @@ export async function getAutoModerationRules(guild, limiter) {
             } else {
                 actions.push(copyAction);
             }
-        }
+        });
 
         collectedRules.push({
             name: rule.name,
@@ -158,9 +158,9 @@ export async function getAutoModerationRules(guild, limiter) {
             exemptRoles: rule.exemptRoles.map((role) => ({ id: role.id, name: role.name })),
             exemptChaannels: rule.exemptChaannels.map((channel) => ({ id: channel.id, name: channel.name }))
         });
-    }
+    });
 
-    return rules;
+    return collectedRules;
 
 }
 
