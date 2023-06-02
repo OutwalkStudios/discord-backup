@@ -61,6 +61,7 @@ async function create(guild, options = {}) {
         doNotBackup: [],
         backupMembers: false,
         saveImages: true,
+        speed: 250,
         ...options
     };
 
@@ -69,7 +70,7 @@ async function create(guild, options = {}) {
         verificationLevel: guild.verificationLevel,
         explicitContentFilter: guild.explicitContentFilter,
         systemChannel: guild.systemChannel ? { name: guild.systemChannel.name, flags: guild.systemChannelFlags } : null,
-        premiumProgressBarEnabled: guild.premiumProgressBarEnabled, 
+        premiumProgressBarEnabled: guild.premiumProgressBarEnabled,
         defaultMessageNotifications: guild.defaultMessageNotifications,
         afk: guild.afkChannel ? { name: guild.afkChannel.name, timeout: guild.afkTimeout } : null,
         widget: {
@@ -87,37 +88,23 @@ async function create(guild, options = {}) {
         id: options.backupId ?? SnowflakeUtil.generate(Date.now())
     };
 
-    const autoModRules = await guild.autoModerationRules.fetch({ cache: false });
-    autoModRules.each((autoModRule) => {
-        let actions = [];
-        autoModRule.actions.forEach((action) => {
-            let copyAction = JSON.parse(JSON.stringify(action));
-            if (copyAction.metadata.channelId) {
-                const channel = guild.channels.cache.get(copyAction.metadata.channelId);
-                if (channel) {
-                    copyAction.metadata.channelName = channel.name;
-                    actions.push(copyAction);
-                }
-            } else {
-                actions.push(copyAction);
-            }
-        });
+    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
 
-        backup.autoModerationRules.push({
-            name: autoModRule.name,
-            eventType: autoModRule.eventType,
-            triggerType: autoModRule.triggerType,
-            triggerMetadata: autoModRule.triggerMetadata,
-            actions: actions,
-            enabled: autoModRule.enabled,
-            exemptRoles: autoModRule.exemptRoles.map((role) => {
-                return { id: role.id, name: role.name };
-            }),
-            exemptChannels: autoModRule.exemptChannels.map((channel) => {
-                return { id: channel.id, name: channel.name };
-            }),
-        });
+    limiter.on("error", async (error) => {
+        /* ignore errors where it request entity is too large */
+        if (error.message == "Request entity too large") return;
+
+        console.error(`ERROR: ${error.message}`);
     });
+
+    limiter.on("failed", (error, jobInfo) => {
+        /* ignore errors where it request entity is too large */
+        if (error.message == "Request entity too large") return;
+
+        console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
+    });
+
+    backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
@@ -147,23 +134,23 @@ async function create(guild, options = {}) {
     }
 
     if (options && options.backupMembers) {
-        backup.members = await createFunctions.getMembers(guild);
+        backup.members = await createFunctions.getMembers(guild, limiter);
     }
 
     if (!options || !(options.doNotBackup || []).includes("bans")) {
-        backup.bans = await createFunctions.getBans(guild);
+        backup.bans = await createFunctions.getBans(guild, limiter);
     }
 
     if (!options || !(options.doNotBackup || []).includes("roles")) {
-        backup.roles = await createFunctions.getRoles(guild);
+        backup.roles = await createFunctions.getRoles(guild, limiter);
     }
 
     if (!options || !(options.doNotBackup || []).includes("emojis")) {
-        backup.emojis = await createFunctions.getEmojis(guild, options);
+        backup.emojis = await createFunctions.getEmojis(guild, options, limiter);
     }
 
     if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(guild, options);
+        backup.channels = await createFunctions.getChannels(guild, options, limiter);
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
@@ -191,7 +178,7 @@ async function load(backup, guild, options) {
 
     limiter.on("error", async (error) => {
         /* ignore errors where it request entity is too large */
-        if(error.message == "Request entity too large") return;
+        if (error.message == "Request entity too large") return;
 
         console.error(`ERROR: ${error.message}`);
     });
@@ -199,7 +186,7 @@ async function load(backup, guild, options) {
     limiter.on("failed", (error, jobInfo) => {
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
-        
+
         console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
     });
 

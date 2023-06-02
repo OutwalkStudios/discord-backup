@@ -24,6 +24,7 @@ export declare interface CreateOptions {
     doNotBackup?: string[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
+    speed?: number;
 }
 
 export declare interface LoadOptions {

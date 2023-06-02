@@ -3,14 +3,14 @@ import axios from "axios";
 import { fetchChannelPermissions, fetchTextChannelData, fetchVoiceChannelData } from "../utils";
 
 /* returns an array with the banned members of the guild */
-export async function getBans(guild) {
-    const bans = await guild.bans.fetch();
+export async function getBans(guild, limiter) {
+    const bans = await limiter.schedule(() => guild.bans.fetch());
     return bans.map((ban) => ({ id: ban.user.id, reason: ban.reason }));
 }
 
 /* returns an array with the members of the guild */
-export async function getMembers(guild) {
-    const members = await guild.members.fetch();
+export async function getMembers(guild, limiter) {
+    const members = await limiter.schedule(() => guild.members.fetch());
 
     return members.map((member) => ({
         userId: member.user.id,
@@ -24,8 +24,8 @@ export async function getMembers(guild) {
 }
 
 /* returns an array with the roles of the guild */
-export async function getRoles(guild) {
-    const roles = await guild.roles.fetch();
+export async function getRoles(guild, limiter) {
+    const roles = await limiter.schedule(() => guild.roles.fetch());
 
     return roles
         .filter((role) => !role.managed)
@@ -43,8 +43,8 @@ export async function getRoles(guild) {
 }
 
 /* returns an array with the emojis of the guild */
-export async function getEmojis(guild, options) {
-    const emojis = await guild.emojis.fetch();
+export async function getEmojis(guild, options, limiter) {
+    const emojis = await limiter.schedule(() => guild.emojis.fetch());
     const collectedEmojis = [];
 
     emojis.forEach(async (emoji) => {
@@ -66,8 +66,8 @@ export async function getEmojis(guild, options) {
 }
 
 /* returns an array with the channels of the guild */
-export async function getChannels(guild, options) {
-    const channels = await guild.channels.fetch();
+export async function getChannels(guild, options, limiter) {
+    const channels = await limiter.schedule(() => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
 
     const categories = channels
@@ -83,7 +83,7 @@ export async function getChannels(guild, options) {
         for (let child of children) {
             let channelData;
             if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildNews) {
-                channelData = await fetchTextChannelData(child, options);
+                channelData = await fetchTextChannelData(child, options, limiter);
             } else {
                 channelData = fetchVoiceChannelData(child);
             }
@@ -112,7 +112,7 @@ export async function getChannels(guild, options) {
     for (let channel of others) {
         let channelData;
         if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildNews) {
-            channelData = await fetchTextChannelData(channel, options);
+            channelData = await fetchTextChannelData(channel, options, limiter);
         } else {
             channelData = fetchVoiceChannelData(channel);
         }
@@ -125,10 +125,50 @@ export async function getChannels(guild, options) {
     return collectedChannels;
 }
 
+/* returns an array with the guilds automoderation rules */
+export async function getAutoModerationRules(guild, limiter) {
+    const rules = await limiter.schedule(() => guild.autoModerationRules.fetch({ cache: false }));
+    const collectedRules = [];
+
+    for (let rule of rules) {
+        const actions = [];
+
+        for (let action of rule.actions) {
+            const copyAction = JSON.parse(JSON.stringify(action));
+
+            if (copyAction.metadata.channelId) {
+                const channel = guild.channels.cache.get(copyAction.metadata.channelId);
+
+                if (channel) {
+                    copyAction.metadata.channelName = channel.name;
+                    actions.push(copyAction);
+                }
+            } else {
+                actions.push(copyAction);
+            }
+        }
+
+        collectedRules.push({
+            name: rule.name,
+            eventType: rule.eventType,
+            triggerType: rule.triggerType,
+            triggerMetadata: rule.triggerMetadata,
+            actions: actions,
+            enabled: rule.enabled,
+            exemptRoles: rule.exemptRoles.map((role) => ({ id: role.id, name: role.name })),
+            exemptChaannels: rule.exemptChaannels.map((channel) => ({ id: channel.id, name: channel.name }))
+        });
+    }
+
+    return rules;
+
+}
+
 export default {
     getBans,
     getMembers,
     getRoles,
     getEmojis,
-    getChannels
+    getChannels,
+    getAutoModerationRules
 };

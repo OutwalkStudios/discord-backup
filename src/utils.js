@@ -50,7 +50,7 @@ export function fetchVoiceChannelData(channel) {
 }
 
 /* fetches the messages from a channel */
-export async function fetchChannelMessages(channel, options) {
+export async function fetchChannelMessages(channel, options, limiter) {
     const messages = [];
 
     const messageCount = isNaN(options.maxMessagesPerChannel) ? 10 : options.maxMessagesPerChannel;
@@ -62,7 +62,7 @@ export async function fetchChannelMessages(channel, options) {
     while (!fetchComplete) {
         if (lastMessageId) fetchOptions.before = lastMessageId;
 
-        const fetched = await channel.messages.fetch(fetchOptions);
+        const fetched = await limiter.schedule(() => channel.messages.fetch(fetchOptions));
         if (fetched.size == 0) break;
 
         lastMessageId = fetched.last().id;
@@ -105,7 +105,7 @@ export async function fetchChannelMessages(channel, options) {
 }
 
 /* fetches the text channel data that is necessary for the backup */
-export async function fetchTextChannelData(channel, options) {
+export async function fetchTextChannelData(channel, options, limiter) {
     const channelData = {
         type: channel.type,
         name: channel.name,
@@ -132,7 +132,7 @@ export async function fetchTextChannelData(channel, options) {
             };
 
             try {
-                threadData.messages = await fetchChannelMessages(thread, options);
+                threadData.messages = await fetchChannelMessages(thread, options, limiter);
                 channelData.threads.push(threadData);
             } catch {
                 channelData.threads.push(threadData);
@@ -141,7 +141,7 @@ export async function fetchTextChannelData(channel, options) {
     }
 
     try {
-        channelData.messages = await fetchChannelMessages(channel, options);
+        channelData.messages = await fetchChannelMessages(channel, options, limiter);
         return channelData;
     } catch {
         return channelData;
