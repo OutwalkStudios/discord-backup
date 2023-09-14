@@ -157,7 +157,7 @@ export async function getAutoModerationRules(guild, limiter) {
             actions: actions,
             enabled: rule.enabled,
             exemptRoles: rule.exemptRoles.map((role) => ({ id: role.id, name: role.name })),
-            exemptChaannels: rule.exemptChannels.map((channel) => ({ id: channel.id, name: channel.name }))
+            exemptChannels: rule.exemptChannels.map((channel) => ({ id: channel.id, name: channel.name }))
         });
     });
 
