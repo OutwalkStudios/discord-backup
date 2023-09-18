@@ -149,6 +149,10 @@ export async function getAutoModerationRules(guild, limiter) {
             }
         });
 
+        /* filter out deleted roles and channels due to a potential bug with discord.js */
+        const exemptRoles = rule.exemptRoles.filter((role) => role != undefined);
+        const exemptChannels = rule.exemptChannels.filter((channel) => channel != undefined);
+
         collectedRules.push({
             name: rule.name,
             eventType: rule.eventType,
@@ -156,8 +160,8 @@ export async function getAutoModerationRules(guild, limiter) {
             triggerMetadata: rule.triggerMetadata,
             actions: actions,
             enabled: rule.enabled,
-            exemptRoles: rule.exemptRoles.map((role) => ({ id: role.id, name: role.name })),
-            exemptChannels: rule.exemptChannels.map((channel) => ({ id: channel.id, name: channel.name }))
+            exemptRoles: exemptRoles.map((role) => ({ id: role.id, name: role.name })),
+            exemptChannels: exemptChannels.map((channel) => ({ id: channel.id, name: channel.name }))
         });
     });
 
