@@ -29,23 +29,19 @@ async function getBackupData(backupId) {
 }
 
 /* fetches a backup and returns the information about it */
-function fetch(backupId) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const backupData = await getBackupData(backupId);
-            const size = fs.statSync(`${backups}${path.sep}${backupId}.json`).size;
+async function fetch(backupId) {
+    try {
+        const backupData = await getBackupData(backupId);
+        const size = fs.statSync(`${backups}${path.sep}${backupId}.json`).size;
 
-            const backupInfo = {
-                data: backupData,
-                id: backupId,
-                size: Number((size / 1024).toFixed(2))
-            };
-
-            resolve(backupInfo);
-        } catch (error) {
-            reject("No backup found");
-        }
-    });
+        return {
+            data: backupData,
+            id: backupId,
+            size: Number((size / 1024).toFixed(2))
+        };
+    } catch {
+        throw new Error("No backup found.");
+    }
 }
 
 /* creates a new backup and saves it to the storage */
