@@ -30,7 +30,7 @@ export async function loadConfig(guild, backup, limiter) {
     }
 
     if (backup.defaultMessageNotifications) {
-        await limiter.schedule(() => guild.setDefaultMessageNotifications(backup.defaultMessageNotifications))
+        await limiter.schedule(() => guild.setDefaultMessageNotifications(backup.defaultMessageNotifications));
     }
 
     const changeableExplicitLevel = guild.features.includes(GuildFeature.Community);
@@ -152,7 +152,7 @@ export async function loadEmojis(guild, backup, limiter) {
             if (emoji.url) {
                 await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
             } else if (emoji.base64) {
-                await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }))
+                await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }));
             }
         } catch (error) {
             console.error(error.message);
@@ -213,7 +213,8 @@ export async function assignRolesToMembers(guild, backup, limiter) {
                 const roles = backupMember.roles.map((oldRoleId) => {
                     const newRole = backup.roleMap[oldRoleId];
                     return newRole ? newRole.id : null;
-                })
+                });
+
                 await limiter.schedule(() => member.edit({roles: roles}));
             }
         }
