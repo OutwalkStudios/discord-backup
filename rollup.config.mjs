@@ -10,14 +10,14 @@ const { dependencies } = JSON.parse(fs.readFileSync(new URL("./package.json", im
 export default {
     input: "src/index.js",
     output: [
-        { file: "dist/index.mjs", format: "esm" },
-        { file: "dist/index.js", format: "cjs", exports: "default" },
+        { file: "dist/index.js", format: "esm" },
+        { file: "dist/index.cjs", format: "cjs", exports: "default" },
     ],
     plugins: [
         resolve(),
         commonjs(),
         json(),
-        esbuild({ target: "node16", minify: true })
+        esbuild({ target: "node16" })
     ],
     external: builtinModules.concat(["discord.js", ...Object.keys(dependencies)])
 };
