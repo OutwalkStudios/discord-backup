@@ -168,7 +168,9 @@ async function load(backup, guild, options) {
 
     options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, doNotLoad: [], ...options };
 
-    const backupData = typeof backup == "string" ? await getBackupData(backup) : backup;
+    /* get the backup data from a several possible methods it could be passed into this method */
+    const isBackupFromFetch = (backup.id && backup.size && backup.data);
+    const backupData = typeof backup == "string" ? await getBackupData(backup) : isBackupFromFetch ? backup.data : backup;
 
     if (typeof options.speed != "number") {
         throw new Error("Speed option must be a string or number");
