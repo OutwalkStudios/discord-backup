@@ -14,7 +14,8 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint src",
+    "prepublishOnly": "npm run lint && npm run build"
   },
   "keywords": [
     "discord",
@@ -46,6 +47,7 @@
     "@rollup/plugin-json": "^6.0.0",
     "@rollup/plugin-node-resolve": "^15.2.1",
     "esbuild": "^0.19.3",
+    "eslint": "^8.49.0",
     "rollup": "^3.23.0",
     "rollup-plugin-esbuild": "^5.0.0"
   },
