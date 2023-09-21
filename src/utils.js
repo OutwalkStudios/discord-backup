@@ -261,16 +261,16 @@ export async function loadChannel(channelData, guild, category, options, limiter
 /* delete all roles, channels, emojis, etc of a guild */
 export async function clearGuild(guild, limiter) {
     const roles = guild.roles.cache.filter((role) => !role.managed && role.editable && role.id != guild.id);
-    roles.forEach(async (role) => await limiter.schedule(() => role.delete().catch(() => { })));
+    roles.forEach(async (role) => await limiter.schedule(() => role.delete().catch((error) => console.error(`Error occurred while deleting roles: ${error.message}`))));
 
-    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete().catch(() => { })));
-    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete().catch(() => { })));
+    guild.channels.cache.forEach(async (channel) => await limiter.schedule(() => channel.delete().catch((error) => console.error(`Error occurred while deleting channels: ${error.message}`))));
+    guild.emojis.cache.forEach(async (emoji) => await limiter.schedule(() => emoji.delete().catch((error) => console.error(`Error occurred while deleting emojis: ${error.message}`))));
 
     const webhooks = await limiter.schedule(() => guild.fetchWebhooks());
-    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete().catch(() => { })));
+    webhooks.forEach(async (webhook) => await limiter.schedule(() => webhook.delete().catch((error) => console.error(`Error occurred while deleting webhooks: ${error.message}`))));
 
     const bans = await limiter.schedule(() => guild.bans.fetch());
-    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user).catch(() => { })));
+    bans.forEach(async (ban) => await limiter.schedule(() => guild.members.unban(ban.user).catch((error) => console.error(`Error occurred while deleting bans: ${error.message}`))));
 
     await limiter.schedule(() => guild.setAFKChannel(null));
     await limiter.schedule(() => guild.setAFKTimeout(60 * 5));
@@ -295,5 +295,5 @@ export async function clearGuild(guild, limiter) {
     await limiter.schedule(() => guild.setPremiumProgressBarEnabled(false));
 
     const rules = await limiter.schedule(() => guild.autoModerationRules.fetch());
-    rules.forEach(async (rule) => await limiter.schedule(() => rule.delete().catch(() => { })));
+    rules.forEach(async (rule) => await limiter.schedule(() => rule.delete().catch((error) => console.error(`Error occurred while deleting automod rules: ${error.message}`))));
 }
