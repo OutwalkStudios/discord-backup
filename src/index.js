@@ -91,13 +91,11 @@ async function create(guild, options = {}) {
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
         limiter.on("executing", (jobInfo) => {
-            const id = jobInfo.options.id;
-            console.log(`Job ${id} is executing.`);
+            console.log(`Executing ${jobInfo.options.id}.`);
         });
 
         limiter.on("done", (jobInfo) => {
-            const id = jobInfo.options.id;
-            console.log(`Job ${id} has completed.`);
+            console.log(`Completed ${jobInfo.options.id}.`);
         });
     }
 
@@ -109,12 +107,10 @@ async function create(guild, options = {}) {
     });
 
     limiter.on("failed", (error, jobInfo) => {
-        const id = jobInfo.options.id;
-
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
 
-        console.error(`Job ${id} Failed: ${error.message}`);
+        console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
     backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
@@ -194,13 +190,11 @@ async function load(backup, guild, options) {
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
         limiter.on("executing", (jobInfo) => {
-            const id = jobInfo.options.id;
-            console.log(`Job ${id} is executing.`);
+            console.log(`Executing ${jobInfo.options.id}.`);
         });
 
         limiter.on("done", (jobInfo) => {
-            const id = jobInfo.options.id;
-            console.log(`Job ${id} has completed.`);
+            console.log(`Completed ${jobInfo.options.id}.`);
         });
     }
 
@@ -212,12 +206,10 @@ async function load(backup, guild, options) {
     });
 
     limiter.on("failed", (error, jobInfo) => {
-        const id = jobInfo.options.id;
-
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
 
-        console.error(`Job ${id} Failed: ${error.message}`);
+        console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
     // Main part of the backup restoration:
