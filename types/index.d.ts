@@ -25,12 +25,14 @@ export declare interface CreateOptions {
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;
+    verbose?: boolean;
 }
 
 export declare interface LoadOptions {
     clearGuildBeforeRestore?: boolean;
     maxMessagesPerChannel?: number;
     speed?: number;
+    verbose?: boolean;
     doNotLoad?: string[];
 }
 

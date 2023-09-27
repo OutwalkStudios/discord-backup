@@ -58,6 +58,7 @@ async function create(guild, options = {}) {
         backupMembers: false,
         saveImages: true,
         speed: 250,
+        verbose: false,
         ...options
     };
 
@@ -86,6 +87,20 @@ async function create(guild, options = {}) {
 
     const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
 
+
+    /* if verbose is enabled, log all tasks at executing and done stages */
+    if (options.verbose) {
+        limiter.on("executing", (jobInfo) => {
+            const id = jobInfo.options.id;
+            console.log(`Job ${id} is executing.`);
+        });
+
+        limiter.on("done", (jobInfo) => {
+            const id = jobInfo.options.id;
+            console.log(`Job ${id} has completed.`);
+        });
+    }
+
     limiter.on("error", async (error) => {
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
@@ -94,10 +109,12 @@ async function create(guild, options = {}) {
     });
 
     limiter.on("failed", (error, jobInfo) => {
+        const id = jobInfo.options.id;
+
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
 
-        console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
+        console.error(`Job ${id} Failed: ${error.message}`);
     });
 
     backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
@@ -162,7 +179,7 @@ async function create(guild, options = {}) {
 async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
-    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, doNotLoad: [], ...options };
+    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, doNotLoad: [], verbose: false, ...options };
 
     /* get the backup data from a several possible methods it could be passed into this method */
     const isBackupFromFetch = (backup.id && backup.size && backup.data);
@@ -174,6 +191,19 @@ async function load(backup, guild, options) {
 
     const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
 
+    /* if verbose is enabled, log all tasks at executing and done stages */
+    if (options.verbose) {
+        limiter.on("executing", (jobInfo) => {
+            const id = jobInfo.options.id;
+            console.log(`Job ${id} is executing.`);
+        });
+
+        limiter.on("done", (jobInfo) => {
+            const id = jobInfo.options.id;
+            console.log(`Job ${id} has completed.`);
+        });
+    }
+
     limiter.on("error", async (error) => {
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
@@ -182,10 +212,12 @@ async function load(backup, guild, options) {
     });
 
     limiter.on("failed", (error, jobInfo) => {
+        const id = jobInfo.options.id;
+
         /* ignore errors where it request entity is too large */
         if (error.message == "Request entity too large") return;
 
-        console.error(`FAILED: ${error.message}\nTASK: ${JSON.stringify(jobInfo)}`);
+        console.error(`Job ${id} Failed: ${error.message}`);
     });
 
     // Main part of the backup restoration:
