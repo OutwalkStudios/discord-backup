@@ -44,7 +44,7 @@ await backup.remove(backupId);
 ### Fetch
 
 Fetches information from a backup.
-The backkup info provides a `data`, `id`, and `size` property.
+The backup info provides a `data`, `id`, and `size` property.
 
 ```js
 import backup from "@outwalk/discord-backup";
