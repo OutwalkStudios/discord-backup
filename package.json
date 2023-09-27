@@ -1,7 +1,7 @@
 {
   "name": "@outwalk/discord-backup",
   "type": "module",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "publishConfig": {
     "access": "public"
   },
