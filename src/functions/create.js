@@ -4,13 +4,13 @@ import { fetchChannelPermissions, fetchTextChannelData, fetchVoiceChannelData } 
 
 /* returns an array with the banned members of the guild */
 export async function getBans(guild, limiter) {
-    const bans = await limiter.schedule(() => guild.bans.fetch());
+    const bans = await limiter.schedule({ id: "guild.bans.fetch" }, () => guild.bans.fetch());
     return bans.map((ban) => ({ id: ban.user.id, reason: ban.reason }));
 }
 
 /* returns an array with the members of the guild */
 export async function getMembers(guild, limiter) {
-    const members = await limiter.schedule(() => guild.members.fetch());
+    const members = await limiter.schedule({ id: "guild.members.fetch" }, () => guild.members.fetch());
 
     return members.map((member) => ({
         userId: member.user.id,
@@ -25,7 +25,7 @@ export async function getMembers(guild, limiter) {
 
 /* returns an array with the roles of the guild */
 export async function getRoles(guild, limiter) {
-    const roles = await limiter.schedule(() => guild.roles.fetch());
+    const roles = await limiter.schedule({ id: "guild.roles.fetch" }, () => guild.roles.fetch());
 
     return roles
         .filter((role) => !role.managed)
@@ -44,7 +44,7 @@ export async function getRoles(guild, limiter) {
 
 /* returns an array with the emojis of the guild */
 export async function getEmojis(guild, options, limiter) {
-    const emojis = await limiter.schedule(() => guild.emojis.fetch());
+    const emojis = await limiter.schedule({ id: "guild.emojis.fetch" }, () => guild.emojis.fetch());
     const collectedEmojis = [];
 
     emojis.forEach(async (emoji) => {
@@ -67,7 +67,7 @@ export async function getEmojis(guild, options, limiter) {
 
 /* returns an array with the channels of the guild */
 export async function getChannels(guild, options, limiter) {
-    const channels = await limiter.schedule(() => guild.channels.fetch());
+    const channels = await limiter.schedule({ id: "guild.channels.fetch" }, () => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
 
     const categories = channels
@@ -127,7 +127,7 @@ export async function getChannels(guild, options, limiter) {
 
 /* returns an array with the guilds automoderation rules */
 export async function getAutoModerationRules(guild, limiter) {
-    const rules = await limiter.schedule(() => guild.autoModerationRules.fetch({ cache: false }));
+    const rules = await limiter.schedule({ id: "guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch({ cache: false }));
     const collectedRules = [];
 
     rules.forEach((rule) => {

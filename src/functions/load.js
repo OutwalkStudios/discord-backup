@@ -4,38 +4,38 @@ import { loadCategory, loadChannel } from "../utils";
 /* restores the guild configuration */
 export async function loadConfig(guild, backup, limiter) {
     if (backup.name) {
-        await limiter.schedule(() => guild.setName(backup.name));
+        await limiter.schedule({ id: "guild.setName" }, () => guild.setName(backup.name));
     }
 
     if (backup.iconBase64) {
-        await limiter.schedule(() => guild.setIcon(Buffer.from(backup.iconBase64, "base64")));
+        await limiter.schedule({ id: "guild.setIcon" }, () => guild.setIcon(Buffer.from(backup.iconBase64, "base64")));
     } else if (backup.iconURL) {
-        await limiter.schedule(() => guild.setIcon(backup.iconURL));
+        await limiter.schedule({ id: "guild.setIcon" }, () => guild.setIcon(backup.iconURL));
     }
 
     if (backup.splashBase64) {
-        await limiter.schedule(() => guild.setSplash(Buffer.from(backup.splashBase64, "base64")));
+        await limiter.schedule({ id: "guild.setSplash" }, () => guild.setSplash(Buffer.from(backup.splashBase64, "base64")));
     } else if (backup.splashURL) {
-        await limiter.schedule(() => guild.setSplash(backup.splashURL));
+        await limiter.schedule({ id: "guild.setSplash" }, () => guild.setSplash(backup.splashURL));
     }
 
     if (backup.bannerBase64) {
-        await limiter.schedule(() => guild.setBanner(Buffer.from(backup.bannerBase64, "base64")));
+        await limiter.schedule({ id: "guild.setBanner" }, () => guild.setBanner(Buffer.from(backup.bannerBase64, "base64")));
     } else if (backup.bannerURL) {
-        await limiter.schedule(() => guild.setBanner(backup.bannerURL));
+        await limiter.schedule({ id: "guild.setBanner" }, () => guild.setBanner(backup.bannerURL));
     }
 
     if (backup.verificationLevel) {
-        await limiter.schedule(() => guild.setVerificationLevel(backup.verificationLevel));
+        await limiter.schedule({ id: "guild.setVerificationLevel" }, () => guild.setVerificationLevel(backup.verificationLevel));
     }
 
     if (backup.defaultMessageNotifications) {
-        await limiter.schedule(() => guild.setDefaultMessageNotifications(backup.defaultMessageNotifications));
+        await limiter.schedule({ id: "guild.setDefaultMessageNotifications" }, () => guild.setDefaultMessageNotifications(backup.defaultMessageNotifications));
     }
 
     const changeableExplicitLevel = guild.features.includes(GuildFeature.Community);
     if (backup.explicitContentFilter && changeableExplicitLevel) {
-        await limiter.schedule(() => guild.setExplicitContentFilter(backup.explicitContentFilter));
+        await limiter.schedule({ id: "guild.setExplicitContentFilter" }, () => guild.setExplicitContentFilter(backup.explicitContentFilter));
     }
 
     // Role and channel maps which will get populated later (internal use only):
@@ -48,19 +48,21 @@ export async function loadRoles(guild, backup, limiter) {
     for (let role of backup.roles) {
         try {
             if (role.isEveryone) {
-                await limiter.schedule(() => guild.roles.edit(guild.roles.everyone, {
+                await limiter.schedule({ id: "guild.roles.edit" }, () => guild.roles.edit(guild.roles.everyone, {
                     permissions: BigInt(role.permissions),
                     mentionable: role.mentionable
                 }));
+
                 backup.roleMap[role.oldId] = guild.roles.everyone;
             } else {
-                const createdRole = await limiter.schedule(() => guild.roles.create({
+                const createdRole = await limiter.schedule({ id: "guild.roles.create" }, () => guild.roles.create({
                     name: role.name,
                     color: role.color,
                     hoist: role.hoist,
                     permissions: BigInt(role.permissions),
                     mentionable: role.mentionable
                 }));
+
                 backup.roleMap[role.oldId] = createdRole;
             }
         } catch (error) {
@@ -90,8 +92,8 @@ export async function loadChannels(guild, backup, options, limiter) {
 export async function loadAutoModRules(guild, backup, limiter) {
     if (backup.autoModerationRules.length === 0) return;
 
-    const roles = await limiter.schedule(() => guild.roles.fetch());
-    const channels = await limiter.schedule(() => guild.channels.fetch());
+    const roles = await limiter.schedule({ id: "guild.roles.fetch" }, () => guild.roles.fetch());
+    const channels = await limiter.schedule({ id: "guild.channels.fetch" }, () => guild.channels.fetch());
 
     for (const autoModRule of backup.autoModerationRules) {
         let actions = [];
@@ -127,8 +129,8 @@ export async function loadAutoModRules(guild, backup, limiter) {
                 if (filteredFirstChannel) return filteredFirstChannel.id;
             }),
         };
-        
-        await limiter.schedule(() => guild.autoModerationRules.create(data));
+
+        await limiter.schedule({ id: "guild.autoModerationRules.create" }, () => guild.autoModerationRules.create(data));
     }
 }
 
@@ -136,8 +138,8 @@ export async function loadAutoModRules(guild, backup, limiter) {
 export async function loadAFk(guild, backup, limiter) {
     if (backup.afk) {
         try {
-            await limiter.schedule(() => guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == ChannelType.GuildVoice)));
-            await limiter.schedule(() => guild.setAFKTimeout(backup.afk.timeout));
+            await limiter.schedule({ id: "guild.setAFKChannel" }, () => guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == ChannelType.GuildVoice)));
+            await limiter.schedule({ id: "guild.setAFKTimeout" }, () => guild.setAFKTimeout(backup.afk.timeout));
         } catch (error) {
             console.error(error.message);
         }
@@ -150,9 +152,9 @@ export async function loadEmojis(guild, backup, limiter) {
     for (let emoji of backup.emojis) {
         try {
             if (emoji.url) {
-                await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
+                await limiter.schedule({ id: "guild.emojis.create" }, () => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
             } else if (emoji.base64) {
-                await limiter.schedule(() => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }));
+                await limiter.schedule({ id: "guild.emojis.create" }, () => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }));
             }
         } catch (error) {
             console.error(error.message);
@@ -164,7 +166,7 @@ export async function loadEmojis(guild, backup, limiter) {
 export async function loadBans(guild, backup, limiter) {
     for (let ban of backup.bans) {
         try {
-            await limiter.schedule(() => guild.members.ban(ban.id, { reason: ban.reason }));
+            await limiter.schedule({ id: "guild.members.ban" }, () => guild.members.ban(ban.id, { reason: ban.reason }));
         } catch (error) {
             console.error(error.message);
         }
@@ -175,7 +177,7 @@ export async function loadBans(guild, backup, limiter) {
 export async function loadEmbedChannel(guild, backup, limiter) {
     if (backup.widget.channel) {
         try {
-            await limiter.schedule(() => guild.setWidgetSettings({
+            await limiter.schedule({ id: "guild.setWidgetSettings" }, () => guild.setWidgetSettings({
                 enabled: backup.widget.enabled,
                 channel: guild.channels.cache.find((channel) => channel.name == backup.widget.channel)
             }));
@@ -189,22 +191,22 @@ export async function loadEmbedChannel(guild, backup, limiter) {
 export async function loadFinalSettings(guild, backup, limiter) {
     // System Channel:
     if (backup.systemChannel) {
-        const channels = await limiter.schedule(() => guild.channels.fetch());
+        const channels = await limiter.schedule({ id: "guild.channels.fetch" }, () => guild.channels.fetch());
         const filteredFirstChannel = channels.filter(channel => channel.name === backup.systemChannel.name).first();
 
-        await limiter.schedule(() => guild.setSystemChannel(filteredFirstChannel));
-        await limiter.schedule(() => guild.setSystemChannelFlags(backup.systemChannel.flags));
+        await limiter.schedule({ id: "guild.setSystemChannel" }, () => guild.setSystemChannel(filteredFirstChannel));
+        await limiter.schedule({ id: "guild.setSystemChannelFlags" }, () => guild.setSystemChannelFlags(backup.systemChannel.flags));
     }
 
     // Boost Progress Bar:
     if (backup.premiumProgressBarEnabled) {
-        await limiter.schedule(() => guild.setPremiumProgressBarEnabled(backup.premiumProgressBarEnabled));
+        await limiter.schedule({ id: "guild.setPremiumProgressBarEnabled" }, () => guild.setPremiumProgressBarEnabled(backup.premiumProgressBarEnabled));
     }
 }
 
 /* restore role assignments to members */
 export async function assignRolesToMembers(guild, backup, limiter) {
-    const members = await limiter.schedule(() => guild.members.fetch());
+    const members = await limiter.schedule({ id: "guild.members.fetch" }, () => guild.members.fetch());
 
     for (let backupMember of backup.members) {
         if (!backupMember.bot) { // Ignore bots
@@ -215,7 +217,7 @@ export async function assignRolesToMembers(guild, backup, limiter) {
                     return newRole ? newRole.id : null;
                 });
 
-                await limiter.schedule(() => member.edit({roles: roles}));
+                await limiter.schedule({ id: "member.edit" }, () => member.edit({ roles: roles }));
             }
         }
     }
