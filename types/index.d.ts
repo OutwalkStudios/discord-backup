@@ -8,6 +8,7 @@ import type {
     VoiceBasedChannelTypes,
     ThreadChannelType,
     Embed,
+    MessageComponent,
     ThreadAutoArchiveDuration,
     SystemChannelFlagsResolvable,
     AutoModerationRuleEventType,
@@ -67,10 +68,12 @@ export declare interface BaseChannelData {
 }
 
 export declare interface MessageData {
+    userId?: string;
     username: string;
     avatar?: string;
     content?: string;
     embeds?: Embed[];
+    components?: MessageComponent[];
     files?: Object;
     pinned?: boolean;
     sentAt: string;
