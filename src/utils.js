@@ -90,6 +90,7 @@ export async function fetchChannelMessages(channel, options, limiter) {
             }));
 
             messages.push({
+                oldId: message.id,
                 userId: message.author.id,
                 username: message.author.username,
                 avatar: message.author.displayAvatarURL(),
