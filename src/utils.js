@@ -179,8 +179,11 @@ export async function loadChannel(channelData, guild, category, options, limiter
         if (!webhook) return;
 
         messages = messages.filter((message) => (message.content.length > 0 || message.embeds.length > 0 || message.files.length > 0)).reverse();
-        // Buggy if maxMessagesPerChannel is greater than messages.length
-        messages = messages.slice(messages.length - options.maxMessagesPerChannel);
+
+        // Limit the amount of messages to send
+        if (options.maxMessagesPerChannel && options.maxMessagesPerChannel < messages.length) {
+            messages = messages.slice(messages.length - options.maxMessagesPerChannel);
+        }
 
         for (let message of messages) {
             if (message.content.length > 2000) continue;
