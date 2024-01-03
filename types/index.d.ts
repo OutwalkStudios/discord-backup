@@ -202,6 +202,7 @@ export declare interface BackupData {
     emojis: EmojiData[];
     members: MemberData[];
     createdTimestamp: number;
+    messagesPerChannel?: number;
     guildID: string;
     id: Snowflake;
 }

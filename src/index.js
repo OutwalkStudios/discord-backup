@@ -81,6 +81,7 @@ async function create(guild, options = {}) {
         emojis: [],
         members: [],
         createdTimestamp: Date.now(),
+        messagesPerChannel: options.maxMessagesPerChannel,
         guildID: guild.id,
         id: options.backupId ?? SnowflakeUtil.generate(Date.now())
     };
