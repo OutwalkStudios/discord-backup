@@ -82,7 +82,7 @@ export async function getChannels(guild, options, limiter) {
 
         for (let child of children) {
             let channelData;
-            if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildNews) {
+            if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
                 channelData = await fetchTextChannelData(child, options, limiter);
             } else {
                 channelData = fetchVoiceChannelData(child);
@@ -101,9 +101,9 @@ export async function getChannels(guild, options, limiter) {
             return (
                 !channel.parent &&
                 channel.type != ChannelType.GuildCategory &&
-                channel.type != ChannelType.GuildNewsThread &&
-                channel.type != ChannelType.GuildPrivateThread &&
-                channel.type != ChannelType.GuildPublicThread
+                channel.type != ChannelType.AnnouncementThread &&
+                channel.type != ChannelType.PrivateThread &&
+                channel.type != ChannelType.PublicThread
             );
         })
         .sort((a, b) => a.position - b.position)
@@ -111,7 +111,7 @@ export async function getChannels(guild, options, limiter) {
 
     for (let channel of others) {
         let channelData;
-        if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildNews) {
+        if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
             channelData = await fetchTextChannelData(channel, options, limiter);
         } else {
             channelData = fetchVoiceChannelData(channel);

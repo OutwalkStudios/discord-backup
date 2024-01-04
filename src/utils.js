@@ -90,10 +90,13 @@ export async function fetchChannelMessages(channel, options, limiter) {
             }));
 
             messages.push({
+                oldId: message.id,
+                userId: message.author.id,
                 username: message.author.username,
                 avatar: message.author.displayAvatarURL(),
                 content: message.cleanContent,
                 embeds: message.embeds,
+                components: message.components,
                 files: files,
                 pinned: message.pinned,
                 sentAt: message.createdAt.toISOString()
@@ -115,7 +118,7 @@ export async function fetchTextChannelData(channel, options, limiter) {
         topic: channel.topic,
         permissions: fetchChannelPermissions(channel),
         messages: [],
-        isNews: channel.type == ChannelType.GuildNews,
+        isNews: channel.type == ChannelType.GuildAnnouncement,
         threads: []
     };
 
@@ -176,20 +179,39 @@ export async function loadChannel(channelData, guild, category, options, limiter
         if (!webhook) return;
 
         messages = messages.filter((message) => (message.content.length > 0 || message.embeds.length > 0 || message.files.length > 0)).reverse();
-        messages = messages.slice(messages.length - options.maxMessagesPerChannel);
+
+        // Limit the amount of messages to send
+        if (options.maxMessagesPerChannel && options.maxMessagesPerChannel < messages.length) {
+            messages = messages.slice(messages.length - options.maxMessagesPerChannel);
+        }
 
         for (let message of messages) {
             if (message.content.length > 2000) continue;
             try {
-                const sent = await limiter.schedule({ id: `loadMessages::webhook.send::${channel.name}` }, () => webhook.send({
+                let sent;
+                // Check if the message was sent by the client user
+                if (message?.userId == channel.client.user.id) {
+                    sent = await limiter.schedule({ id: `loadMessages::channel.send::${channel.name}` }, () => channel.send({
+                        content: message.content.length ? message.content : undefined,
+                        embeds: message.embeds,
+                        components: message.components,
+                        files: message.files,
+                        allowedMentions: options.allowedMentions
+                    }));
+                // Else, send the message as a webhook
+                } else {
+                sent = await limiter.schedule({ id: `loadMessages::webhook.send::${channel.name}` }, () => webhook.send({
                     content: message.content.length ? message.content : undefined,
                     username: message.username,
                     avatarURL: message.avatar,
                     embeds: message.embeds,
+                    components: message?.components, //Send message components with backwards compatibility
                     files: message.files,
                     allowedMentions: options.allowedMentions,
                     threadId: channel.isThread() ? channel.id : undefined
                 }));
+
+                }
 
                 if (message.pinned && sent) await limiter.schedule({ id: `loadMessages::sent.pin::${channel.name}` }, () => sent.pin());
             } catch (error) {
@@ -204,11 +226,11 @@ export async function loadChannel(channelData, guild, category, options, limiter
 
     const createOptions = { name: channelData.name, type: null, parent: category };
 
-    if (channelData.type == ChannelType.GuildText || channelData.type == ChannelType.GuildNews) {
+    if (channelData.type == ChannelType.GuildText || channelData.type == ChannelType.GuildAnnouncement) {
         createOptions.topic = channelData.topic;
         createOptions.nsfw = channelData.nsfw;
         createOptions.rateLimitPerUser = channelData.rateLimitPerUser;
-        createOptions.type = channelData.isNews && guild.features.includes(GuildFeature.News) ? ChannelType.GuildNews : ChannelType.GuildText;
+        createOptions.type = channelData.isNews && guild.features.includes(GuildFeature.News) ? ChannelType.GuildAnnouncement : ChannelType.GuildText;
     }
 
     else if (channelData.type == ChannelType.GuildVoice) {
