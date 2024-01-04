@@ -54,7 +54,7 @@ export async function fetchChannelMessages(channel, options, limiter) {
     const messages = [];
 
     const messageCount = isNaN(options.maxMessagesPerChannel) ? 10 : options.maxMessagesPerChannel;
-    const fetchOptions = { limit: messageCount };
+    const fetchOptions = { limit: 100 };
 
     let lastMessageId;
     let fetchComplete = false;
