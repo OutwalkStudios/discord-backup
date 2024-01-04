@@ -198,18 +198,18 @@ export async function loadChannel(channelData, guild, category, options, limiter
                         files: message.files,
                         allowedMentions: options.allowedMentions
                     }));
-                // Else, send the message as a webhook
+                    // Else, send the message as a webhook
                 } else {
-                sent = await limiter.schedule({ id: `loadMessages::webhook.send::${channel.name}` }, () => webhook.send({
-                    content: message.content.length ? message.content : undefined,
-                    username: message.username,
-                    avatarURL: message.avatar,
-                    embeds: message.embeds,
-                    components: message?.components, //Send message components with backwards compatibility
-                    files: message.files,
-                    allowedMentions: options.allowedMentions,
-                    threadId: channel.isThread() ? channel.id : undefined
-                }));
+                    sent = await limiter.schedule({ id: `loadMessages::webhook.send::${channel.name}` }, () => webhook.send({
+                        content: message.content.length ? message.content : undefined,
+                        username: message.username,
+                        avatarURL: message.avatar,
+                        embeds: message.embeds,
+                        components: message?.components, //Send message components with backwards compatibility
+                        files: message.files,
+                        allowedMentions: options.allowedMentions,
+                        threadId: channel.isThread() ? channel.id : undefined
+                    }));
 
                 }
 
@@ -316,6 +316,6 @@ export async function clearGuild(guild, limiter) {
 
     await limiter.schedule({ id: "clearGuild::guild.setPremiumProgressBarEnabled" }, () => guild.setPremiumProgressBarEnabled(false));
 
-    const rules = await limiter.schedule({ id: "clearGuild::guild.autoModerationRules.fetch" },() => guild.autoModerationRules.fetch());
+    const rules = await limiter.schedule({ id: "clearGuild::guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch());
     rules.forEach(async (rule) => await limiter.schedule({ id: `clearGuild::rule.delete::${rule.id}` }, () => rule.delete().catch((error) => console.error(`Error occurred while deleting automod rules: ${error.message}`))));
 }
