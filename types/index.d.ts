@@ -119,6 +119,7 @@ export declare interface RoleData {
     oldId: string;
     name: string;
     color: `#${string}`;
+    icon: string;
     hoist: boolean;
     permissions: string;
     mentionable: boolean;
