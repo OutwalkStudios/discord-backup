@@ -58,9 +58,11 @@ export async function loadRoles(guild, backup, limiter) {
                 const createdRole = await limiter.schedule({ id: `loadRoles::guild.roles.create::${role.name}` }, () => guild.roles.create({
                     name: role.name,
                     color: role.color,
+                    icon: role.icon,
                     hoist: role.hoist,
                     permissions: BigInt(role.permissions),
-                    mentionable: role.mentionable
+                    mentionable: role.mentionable,
+                    position: role.position
                 }));
 
                 backup.roleMap[role.oldId] = createdRole;

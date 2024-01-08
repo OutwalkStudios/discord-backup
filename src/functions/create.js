@@ -34,6 +34,7 @@ export async function getRoles(guild, limiter) {
             oldId: role.id,
             name: role.name,
             color: role.hexColor,
+            icon: role.iconURL(),
             hoist: role.hoist,
             permissions: role.permissions.bitfield.toString(),
             mentionable: role.mentionable,
