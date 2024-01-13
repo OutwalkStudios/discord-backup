@@ -1,6 +1,11 @@
-import { ChannelType } from "discord.js";
 import axios from "axios";
-import { fetchChannelPermissions, fetchTextChannelData, fetchVoiceChannelData } from "../utils";
+import { ChannelType } from "discord.js";
+import { 
+    fetchChannelPermissions,
+    fetchTextChannelData,
+    fetchVoiceChannelData,
+    fetchStageChannelData
+} from "../utils";
 
 /* returns an array with the banned members of the guild */
 export async function getBans(guild, limiter) {
@@ -85,9 +90,14 @@ export async function getChannels(guild, options, limiter) {
             let channelData;
             if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
                 channelData = await fetchTextChannelData(child, options, limiter);
-            } else {
+            } else if (child.type == ChannelType.GuildVoice) {
                 channelData = fetchVoiceChannelData(child);
+            } else if (child.type == ChannelType.GuildStageVoice) {
+                channelData = fetchStageChannelData(child, options, limiter);
+            } else {
+                console.warn(`Unsupported channel type: ${child.type}`);
             }
+
             if (channelData) {
                 channelData.oldId = child.id;
                 categoryData.children.push(channelData);

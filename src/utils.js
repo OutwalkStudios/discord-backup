@@ -49,6 +49,29 @@ export function fetchVoiceChannelData(channel) {
     };
 }
 
+/* fetches the stage channel data that is necessary for the backup */
+export async function fetchStageChannelData(channel, options, limiter) {
+    const channelData = {
+        type: ChannelType.GuildStageVoice,
+        name: channel.name,
+        nsfw: channel.nsfw,
+        rateLimitPerUser: channel.rateLimitPerUser,
+        topic: channel.topic,
+        bitrate: channel.bitrate,
+        userLimit: channel.userLimit,
+        parent: channel.parent ? channel.parent.name : null,
+        permissions: fetchChannelPermissions(channel),
+        messages: []
+    };
+
+    try {
+        channelData.messages = await fetchChannelMessages(channel, options, limiter);
+        return channelData;
+    } catch {
+        return channelData;
+    }
+}
+
 /* fetches the messages from a channel */
 export async function fetchChannelMessages(channel, options, limiter) {
     const messages = [];
@@ -243,7 +266,23 @@ export async function loadChannel(channelData, guild, category, options, limiter
 
         createOptions.bitrate = bitrate;
         createOptions.userLimit = channelData.userLimit;
-        createOptions.type = ChannelType.GuildVoice;
+        createOptions.type = channelData.type;
+    }
+
+    else if (channelData.type == ChannelType.GuildStageVoice) {
+        let bitrate = channelData.bitrate;
+        const bitrates = Object.values(MAX_BITRATE_PER_TIER);
+
+        while (bitrate > MAX_BITRATE_PER_TIER[guild.premiumTier]) {
+            bitrate = bitrates[guild.premiumTier];
+        }
+
+        createOptions.topic = channelData.topic;
+        createOptions.nsfw = channelData.nsfw;
+        createOptions.rateLimitPerUser = channelData.rateLimitPerUser;
+        createOptions.bitrate = bitrate;
+        createOptions.userLimit = channelData.userLimit;
+        createOptions.type = channelData.type;
     }
 
     const channel = await limiter.schedule({ id: `loadChannel::guild.channels.create::${channelData.name}` }, () => guild.channels.create(createOptions));
@@ -274,6 +313,12 @@ export async function loadChannel(channelData, guild, category, options, limiter
                 const thread = await limiter.schedule({ id: `loadChannel::channel.threads.create::${threadData.name}` }, () => channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration }));
                 if (webhook) await loadMessages(thread, threadData.messages, webhook);
             });
+        }
+    }
+
+    else if (channelData.type == ChannelType.GuildStageVoice) {
+        if (channelData.messages.length > 0) {
+            await loadMessages(channel, channelData.messages);
         }
     }
 
