@@ -283,6 +283,9 @@ export async function loadChannel(channelData, guild, category, options, limiter
         createOptions.bitrate = bitrate;
         createOptions.userLimit = channelData.userLimit;
         createOptions.type = channelData.type;
+
+        /* Stage channels require the server to have Community features. */
+        if (!guild.features.includes(GuildFeature.Community)) return null;
     }
 
     const channel = await limiter.schedule({ id: `loadChannel::guild.channels.create::${channelData.name}` }, () => guild.channels.create(createOptions));
@@ -330,7 +333,12 @@ export async function clearGuild(guild, limiter) {
     const roles = guild.roles.cache.filter((role) => !role.managed && role.editable && role.id != guild.id);
     roles.forEach(async (role) => await limiter.schedule({ id: `clearGuild::role.delete::${role.id}` }, () => role.delete().catch((error) => console.error(`Error occurred while deleting roles: ${error.message}`))));
 
-    guild.channels.cache.forEach(async (channel) => await limiter.schedule({ id: `clearGuild::channel.delete::${channel.id}` }, () => channel.delete().catch((error) => console.error(`Error occurred while deleting channels: ${error.message}`))));
+    guild.channels.cache.forEach(async (channel) => {
+        if (channel?.deletable) {
+            await limiter.schedule({ id: `clearGuild::channel.delete::${channel.id}` }, () => channel.delete().catch((error) => console.error(`Error occurred while deleting channels: ${error.message}`)));
+        }
+    });
+
     guild.emojis.cache.forEach(async (emoji) => await limiter.schedule({ id: `clearGuild::emoji.delete::${emoji.id}` }, () => emoji.delete().catch((error) => console.error(`Error occurred while deleting emojis: ${error.message}`))));
 
     const webhooks = await limiter.schedule({ id: "clearGuild::guild.fetchWebhooks" }, () => guild.fetchWebhooks());
