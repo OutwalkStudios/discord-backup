@@ -93,7 +93,7 @@ export async function getChannels(guild, options, limiter) {
             } else if (child.type == ChannelType.GuildVoice) {
                 channelData = fetchVoiceChannelData(child);
             } else if (child.type == ChannelType.GuildStageVoice) {
-                channelData = fetchStageChannelData(child, options, limiter);
+                channelData = await fetchStageChannelData(child, options, limiter);
             } else {
                 console.warn(`Unsupported channel type: ${child.type}`);
             }
