@@ -59,10 +59,10 @@ export async function getEmojis(guild, options, limiter) {
         const data = { name: emoji.name };
 
         if (options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(emoji.url, { responseType: "arraybuffer" });
+            const response = await axios.get(emoji.imageURL(), { responseType: "arraybuffer" });
             data.base64 = Buffer.from(response.data, "binary").toString("base64");
         } else {
-            data.url = emoji.url;
+            data.url = emoji.imageURL();
         }
 
         collectedEmojis.push(data);
