@@ -198,7 +198,7 @@ export async function loadCategory(categoryData, guild, limiter) {
 export async function loadChannel(channelData, guild, category, options, limiter) {
 
     const loadMessages = async (channel, messages, previousWebhook) => {
-        const webhook = previousWebhook || await limiter.schedule({ id: `loadMessages::channel.createWebhook::${channel.name}` }, () => channel.createWebhook({ name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() }));
+        const webhook = previousWebhook || await limiter.schedule({ id: `loadMessages::channel.createWebhook::${channel.id}.${channel.name}` }, () => channel.createWebhook({ name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() }));
         if (!webhook) return;
 
         messages = messages.filter((message) => (message.content.length > 0 || message.embeds.length > 0 || message.files.length > 0)).reverse();
@@ -214,7 +214,7 @@ export async function loadChannel(channelData, guild, category, options, limiter
                 let sent;
                 // Check if the message was sent by the client user
                 if (message?.userId == channel.client.user.id) {
-                    sent = await limiter.schedule({ id: `loadMessages::channel.send::${channel.name}` }, () => channel.send({
+                    sent = await limiter.schedule({ id: `loadMessages::channel.send::${channel.id}.${channel.name}` }, () => channel.send({
                         content: message.content.length ? message.content : undefined,
                         embeds: message.embeds,
                         components: message.components,
@@ -223,7 +223,7 @@ export async function loadChannel(channelData, guild, category, options, limiter
                     }));
                     // Else, send the message as a webhook
                 } else {
-                    sent = await limiter.schedule({ id: `loadMessages::webhook.send::${channel.name}` }, () => webhook.send({
+                    sent = await limiter.schedule({ id: `loadMessages::webhook.send::${channel.id}.${channel.name}` }, () => webhook.send({
                         content: message.content.length ? message.content : undefined,
                         username: message.username,
                         avatarURL: message.avatar,
@@ -236,7 +236,7 @@ export async function loadChannel(channelData, guild, category, options, limiter
 
                 }
 
-                if (message.pinned && sent) await limiter.schedule({ id: `loadMessages::sent.pin::${channel.name}` }, () => sent.pin());
+                if (message.pinned && sent) await limiter.schedule({ id: `loadMessages::sent.pin::${channel.id}.${channel.name}` }, () => sent.pin());
             } catch (error) {
                 /* ignore errors where it request entity is too large */
                 if (error.message == "Request entity too large") return;
@@ -312,8 +312,8 @@ export async function loadChannel(channelData, guild, category, options, limiter
         }
 
         if (channelData.threads.length > 0) {
-            channelData.threads.forEach(async (threadData) => {
-                const thread = await limiter.schedule({ id: `loadChannel::channel.threads.create::${threadData.name}` }, () => channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration }));
+            channelData.threads.forEach(async (threadData, index) => {
+                const thread = await limiter.schedule({ id: `loadChannel::channel.threads.create::${index}.${threadData.name}` }, () => channel.threads.create({ name: threadData.name, autoArchiveDuration: threadData.autoArchiveDuration }));
                 if (webhook) await loadMessages(thread, threadData.messages, webhook);
             });
         }
