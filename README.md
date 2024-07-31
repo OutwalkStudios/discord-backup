@@ -101,7 +101,8 @@ await backup.create(guild, {
     doNotBackup: ["roles", "channels", "emojis", "bans"],
     backupMembers: false,
     saveImages: "base64",
-    speed: 250
+    speed: 250,
+    ignore2FA: false
 });
 ```
 
@@ -113,7 +114,12 @@ await backup.create(guild, {
 **backupMembers**: Wether or not to save information on the members of the server.</br>
 **saveImages**: How to save images like guild icon and emojis. Set to "url" by default, restoration may not work if the old server is deleted. So, `url` is recommended if you want to clone a server (or if you need very light backups), and `base64` if you want to backup a server. Save images as base64 creates heavier backups.</br>
 **speed**: What speed to run at, default is 250 (measured in ms)</br>
-**verbose**: Derermines if the output should be verbose or not.
+**verbose**: Derermines if the output should be verbose or not.</br>
+**ignore2FA**: Disables attempting to grab items that require 2FA</br>
+
+#### Requires 2FA
+- Auto Moderation Rules
+- Bans
 
 ### Load [advanced]
 

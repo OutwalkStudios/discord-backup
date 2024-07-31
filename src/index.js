@@ -13,14 +13,26 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 let backups = `${__dirname}/backups`;
 if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 
+/* checks if user has 2fa permissions for 2fa required requests, otherwise warns them */
+function check2FA(options, guild, permission) {
+    if (!guild.client.user.mfa_enabled && !options.ignore2FA)
+        console.log(`[WARNING] 2FA Required for ${permission}`);
+
+    return guild.client.user.mfa_enabled;
+}
+
 /* checks if a backup exists and returns its data */
 async function getBackupData(backupId) {
     return new Promise((resolve, reject) => {
         const files = fs.readdirSync(backups);
-        const file = files.filter((file) => file.split(".").pop() == "json").find((file) => file == `${backupId}.json`);
+        const file = files
+            .filter((file) => file.split(".").pop() == "json")
+            .find((file) => file == `${backupId}.json`);
 
         if (file) {
-            const backupData = JSON.parse(fs.readFileSync(`${backups}${path.sep}${file}`));
+            const backupData = JSON.parse(
+                fs.readFileSync(`${backups}${path.sep}${file}`)
+            );
             resolve(backupData);
         } else {
             reject("No backup found");
@@ -37,7 +49,7 @@ async function fetch(backupId) {
         return {
             data: backupData,
             id: backupId,
-            size: Number((size / 1024).toFixed(2))
+            size: Number((size / 1024).toFixed(2)),
         };
     } catch {
         throw new Error("No backup found.");
@@ -47,7 +59,8 @@ async function fetch(backupId) {
 /* creates a new backup and saves it to the storage */
 async function create(guild, options = {}) {
     const intents = new IntentsBitField(guild.client.options.intents);
-    if (!intents.has(GatewayIntentBits.Guilds)) throw new Error("GUILDS intent is required");
+    if (!intents.has(GatewayIntentBits.Guilds))
+        throw new Error("GUILDS intent is required");
 
     options = {
         backupId: null,
@@ -59,20 +72,25 @@ async function create(guild, options = {}) {
         saveImages: true,
         speed: 250,
         verbose: false,
-        ...options
+        ignore2FA: false,
+        ...options,
     };
 
     const backup = {
         name: guild.name,
         verificationLevel: guild.verificationLevel,
         explicitContentFilter: guild.explicitContentFilter,
-        systemChannel: guild.systemChannel ? { name: guild.systemChannel.name, flags: guild.systemChannelFlags } : null,
+        systemChannel: guild.systemChannel
+            ? { name: guild.systemChannel.name, flags: guild.systemChannelFlags }
+            : null,
         premiumProgressBarEnabled: guild.premiumProgressBarEnabled,
         defaultMessageNotifications: guild.defaultMessageNotifications,
-        afk: guild.afkChannel ? { name: guild.afkChannel.name, timeout: guild.afkTimeout } : null,
+        afk: guild.afkChannel
+            ? { name: guild.afkChannel.name, timeout: guild.afkTimeout }
+            : null,
         widget: {
             enabled: guild.widgetEnabled,
-            channel: guild.widgetChannel ? guild.widgetChannel.name : null
+            channel: guild.widgetChannel ? guild.widgetChannel.name : null,
         },
         autoModerationRules: [],
         channels: { categories: [], others: [] },
@@ -83,11 +101,10 @@ async function create(guild, options = {}) {
         createdTimestamp: Date.now(),
         messagesPerChannel: options.maxMessagesPerChannel,
         guildID: guild.id,
-        id: options.backupId ?? SnowflakeUtil.generate(Date.now())
+        id: options.backupId ?? SnowflakeUtil.generate(Date.now()),
     };
 
     const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
-
 
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
@@ -114,12 +131,20 @@ async function create(guild, options = {}) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
-    backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
+    if (check2FA(options, guild, "Auto Moderation Rules"))
+        backup.autoModerationRules = await createFunctions.getAutoModerationRules(
+            guild,
+            limiter
+        );
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(guild.iconURL({ dynamic: true }), { responseType: "arraybuffer" });
-            backup.iconBase64 = Buffer.from(response.data, "binary").toString("base64");
+            const response = await axios.get(guild.iconURL({ dynamic: true }), {
+                responseType: "arraybuffer",
+            });
+            backup.iconBase64 = Buffer.from(response.data, "binary").toString(
+                "base64"
+            );
         }
 
         backup.iconURL = guild.iconURL({ dynamic: true });
@@ -127,8 +152,12 @@ async function create(guild, options = {}) {
 
     if (guild.splashURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(guild.splashURL(), { responseType: "arraybuffer" });
-            backup.splashBase64 = Buffer.from(response.data, "binary").toString("base64");
+            const response = await axios.get(guild.splashURL(), {
+                responseType: "arraybuffer",
+            });
+            backup.splashBase64 = Buffer.from(response.data, "binary").toString(
+                "base64"
+            );
         }
 
         backup.splashURL = guild.splashURL();
@@ -136,8 +165,12 @@ async function create(guild, options = {}) {
 
     if (guild.bannerURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(guild.bannerURL(), { responseType: "arraybuffer" });
-            backup.bannerBase64 = Buffer.from(response.data, "binary").toString("base64");
+            const response = await axios.get(guild.bannerURL(), {
+                responseType: "arraybuffer",
+            });
+            backup.bannerBase64 = Buffer.from(response.data, "binary").toString(
+                "base64"
+            );
         }
 
         backup.bannerURL = guild.bannerURL();
@@ -148,7 +181,8 @@ async function create(guild, options = {}) {
     }
 
     if (!options || !(options.doNotBackup || []).includes("bans")) {
-        backup.bans = await createFunctions.getBans(guild, limiter);
+        if (check2FA(options, guild, "Bans"))
+            backup.bans = await createFunctions.getBans(guild, limiter);
     }
 
     if (!options || !(options.doNotBackup || []).includes("roles")) {
@@ -160,13 +194,24 @@ async function create(guild, options = {}) {
     }
 
     if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(guild, options, limiter);
+        backup.channels = await createFunctions.getChannels(
+            guild,
+            options,
+            limiter
+        );
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
-        const reviver = (key, value) => typeof value == "bigint" ? value.toString() : value;
-        const backupJSON = options.jsonBeautify ? JSON.stringify(backup, reviver, 4) : JSON.stringify(backup, reviver);
-        fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
+        const reviver = (key, value) =>
+            typeof value == "bigint" ? value.toString() : value;
+        const backupJSON = options.jsonBeautify
+            ? JSON.stringify(backup, reviver, 4)
+            : JSON.stringify(backup, reviver);
+        fs.writeFileSync(
+            `${backups}${path.sep}${backup.id}.json`,
+            backupJSON,
+            "utf-8"
+        );
     }
 
     return backup;
@@ -176,11 +221,23 @@ async function create(guild, options = {}) {
 async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
-    options = { clearGuildBeforeRestore: true, maxMessagesPerChannel: 10, speed: 250, doNotLoad: [], verbose: false, ...options };
+    options = {
+        clearGuildBeforeRestore: true,
+        maxMessagesPerChannel: 10,
+        speed: 250,
+        doNotLoad: [],
+        verbose: false,
+        ...options,
+    };
 
     /* get the backup data from a several possible methods it could be passed into this method */
-    const isBackupFromFetch = (backup.id && backup.size && backup.data);
-    const backupData = typeof backup == "string" ? await getBackupData(backup) : isBackupFromFetch ? backup.data : backup;
+    const isBackupFromFetch = backup.id && backup.size && backup.data;
+    const backupData =
+        typeof backup == "string"
+            ? await getBackupData(backup)
+            : isBackupFromFetch
+                ? backup.data
+                : backup;
 
     if (typeof options.speed != "number") {
         throw new Error("Speed option must be a string or number");
@@ -215,14 +272,17 @@ async function load(backup, guild, options) {
 
     // Main part of the backup restoration:
     if (!options || !(options.doNotLoad || []).includes("main")) {
-        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+        if (
+            options.clearGuildBeforeRestore == undefined ||
+            options.clearGuildBeforeRestore
+        ) {
             await clearGuild(guild, limiter);
         }
 
         // Load base config:
         await Promise.all([
             loadFunctions.loadConfig(guild, backupData, limiter),
-            loadFunctions.loadBans(guild, backupData, limiter)
+            loadFunctions.loadBans(guild, backupData, limiter),
         ]);
 
         // Load roles:
@@ -236,7 +296,7 @@ async function load(backup, guild, options) {
             loadFunctions.loadAFk(guild, backupData, limiter),
             loadFunctions.loadEmbedChannel(guild, backupData, limiter),
             loadFunctions.loadAutoModRules(guild, backupData, limiter),
-            loadFunctions.loadFinalSettings(guild, backupData, limiter)
+            loadFunctions.loadFinalSettings(guild, backupData, limiter),
         ]);
 
         // Assign roles:
@@ -270,7 +330,8 @@ function list() {
 
 /* change the storage path */
 function setStorageFolder(pathname) {
-    if (pathname.endsWith(path.sep)) pathname = pathname.substr(0, pathname.length - 1);
+    if (pathname.endsWith(path.sep))
+        pathname = pathname.substr(0, pathname.length - 1);
 
     backups = pathname;
     if (!fs.existsSync(backups)) fs.mkdirSync(backups);
