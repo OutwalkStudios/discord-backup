@@ -248,7 +248,8 @@ async function load(backup, guild, options) {
 
     // Main part of the backup restoration:
     if (!options || !(options.doNotLoad || []).includes("main")) {
-        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+        // Clear guild only under user consent
+        if (options && options.clearGuildBeforeRestore == true) {
             await clearGuild(guild, limiter);
         }
 
