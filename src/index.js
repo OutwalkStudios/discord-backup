@@ -15,13 +15,15 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 
 /* checks if user has 2fa permissions for 2fa required requests, otherwise warns them */
 function check2FA(options, guild, permission) {
-    if (guild.mfaLevel == GuildMFALevel.Elevated) {
-        if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
-            console.log(`[WARNING] 2FA Required for ${permission}`);
-        }
+    /* skip further processing when 2FA is not required */
+    if (guild.mfaLevel == GuildMFALevel.None) return true;
+
+    /* log a warning when an action requires 2FA but 2FA has not been setup on the bot owner */
+    if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
+        console.log(`[WARNING] - 2FA is required by this server in order to backup ${permission}`);
     }
 
-    return guild.mfaLevel == GuildMFALevel.None || (guild.mfaLevel == GuildMFALevel.Elevated && guild.client.user.mfa_enabled);
+    return guild.client.user.mfaEnabled;
 }
 
 /* checks if a backup exists and returns its data */
@@ -134,20 +136,14 @@ async function create(guild, options = {}) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
-    if (check2FA(options, guild, "Auto Moderation Rules"))
-        backup.autoModerationRules = await createFunctions.getAutoModerationRules(
-            guild,
-            limiter
-        );
+    if (check2FA(options, guild, "auto moderation rules")) {
+        backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
+    }
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(guild.iconURL({ dynamic: true }), {
-                responseType: "arraybuffer",
-            });
-            backup.iconBase64 = Buffer.from(response.data, "binary").toString(
-                "base64"
-            );
+            const response = await axios.get(guild.iconURL({ dynamic: true }), { responseType: "arraybuffer" });
+            backup.iconBase64 = Buffer.from(response.data, "binary").toString("base64");
         }
 
         backup.iconURL = guild.iconURL({ dynamic: true });
@@ -155,12 +151,8 @@ async function create(guild, options = {}) {
 
     if (guild.splashURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(guild.splashURL(), {
-                responseType: "arraybuffer",
-            });
-            backup.splashBase64 = Buffer.from(response.data, "binary").toString(
-                "base64"
-            );
+            const response = await axios.get(guild.splashURL(), { responseType: "arraybuffer" });
+            backup.splashBase64 = Buffer.from(response.data, "binary").toString("base64");
         }
 
         backup.splashURL = guild.splashURL();
@@ -168,12 +160,8 @@ async function create(guild, options = {}) {
 
     if (guild.bannerURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(guild.bannerURL(), {
-                responseType: "arraybuffer",
-            });
-            backup.bannerBase64 = Buffer.from(response.data, "binary").toString(
-                "base64"
-            );
+            const response = await axios.get(guild.bannerURL(), { responseType: "arraybuffer" });
+            backup.bannerBase64 = Buffer.from(response.data, "binary").toString("base64");
         }
 
         backup.bannerURL = guild.bannerURL();
@@ -184,8 +172,9 @@ async function create(guild, options = {}) {
     }
 
     if (!options || !(options.doNotBackup || []).includes("bans")) {
-        if (check2FA(options, guild, "Bans"))
+        if (check2FA(options, guild, "bans")) {
             backup.bans = await createFunctions.getBans(guild, limiter);
+        }
     }
 
     if (!options || !(options.doNotBackup || []).includes("roles")) {
@@ -197,24 +186,13 @@ async function create(guild, options = {}) {
     }
 
     if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(
-            guild,
-            options,
-            limiter
-        );
+        backup.channels = await createFunctions.getChannels(guild, options, limiter);
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
-        const reviver = (key, value) =>
-            typeof value == "bigint" ? value.toString() : value;
-        const backupJSON = options.jsonBeautify
-            ? JSON.stringify(backup, reviver, 4)
-            : JSON.stringify(backup, reviver);
-        fs.writeFileSync(
-            `${backups}${path.sep}${backup.id}.json`,
-            backupJSON,
-            "utf-8"
-        );
+        const reviver = (key, value) => typeof value == "bigint" ? value.toString() : value;
+        const backupJSON = options.jsonBeautify ? JSON.stringify(backup, reviver, 4) : JSON.stringify(backup, reviver);
+        fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
     }
 
     return backup;
@@ -235,12 +213,7 @@ async function load(backup, guild, options) {
 
     /* get the backup data from a several possible methods it could be passed into this method */
     const isBackupFromFetch = backup.id && backup.size && backup.data;
-    const backupData =
-        typeof backup == "string"
-            ? await getBackupData(backup)
-            : isBackupFromFetch
-                ? backup.data
-                : backup;
+    const backupData = typeof backup == "string" ? await getBackupData(backup) : isBackupFromFetch ? backup.data : backup;
 
     if (typeof options.speed != "number") {
         throw new Error("Speed option must be a string or number");
@@ -275,10 +248,7 @@ async function load(backup, guild, options) {
 
     // Main part of the backup restoration:
     if (!options || !(options.doNotLoad || []).includes("main")) {
-        if (
-            options.clearGuildBeforeRestore == undefined ||
-            options.clearGuildBeforeRestore
-        ) {
+        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
             await clearGuild(guild, limiter);
         }
 
@@ -333,8 +303,7 @@ function list() {
 
 /* change the storage path */
 function setStorageFolder(pathname) {
-    if (pathname.endsWith(path.sep))
-        pathname = pathname.substr(0, pathname.length - 1);
+    if (pathname.endsWith(path.sep)) pathname = pathname.substr(0, pathname.length - 1);
 
     backups = pathname;
     if (!fs.existsSync(backups)) fs.mkdirSync(backups);
