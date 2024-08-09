@@ -17,7 +17,7 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 function check2FA(options, guild, permission) {
     if (guild.mfaLevel == GuildMFALevel.Elevated) {
         if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
-          console.log(`[WARNING] 2FA Required for ${permission}`);
+            console.log(`[WARNING] 2FA Required for ${permission}`);
         }
     }
 
