@@ -1,4 +1,4 @@
-import { SnowflakeUtil, IntentsBitField, GatewayIntentBits } from "discord.js";
+import { SnowflakeUtil, IntentsBitField, GatewayIntentBits, GuildMFALevel } from "discord.js";
 import Bottleneck from "bottleneck";
 import axios from "axios";
 import createFunctions from "./functions/create";
@@ -15,10 +15,13 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 
 /* checks if user has 2fa permissions for 2fa required requests, otherwise warns them */
 function check2FA(options, guild, permission) {
-    if (!guild.client.user.mfa_enabled && !options.ignore2FA)
-        console.log(`[WARNING] 2FA Required for ${permission}`);
+    if (guild.mfaLevel == GuildMFALevel.Elevated) {
+        if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
+          console.log(`[WARNING] 2FA Required for ${permission}`);
+        }
+    }
 
-    return guild.client.user.mfa_enabled;
+    return guild.mfaLevel == GuildMFALevel.None || (guild.mfaLevel == GuildMFALevel.Elevated && guild.client.user.mfa_enabled);
 }
 
 /* checks if a backup exists and returns its data */
