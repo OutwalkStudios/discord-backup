@@ -27,6 +27,7 @@ export declare interface CreateOptions {
     saveImages?: boolean | string;
     speed?: number;
     verbose?: boolean;
+    ignore2FA?: boolean;
 }
 
 export declare interface LoadOptions {
