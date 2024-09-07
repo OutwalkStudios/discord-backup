@@ -1,190 +1,241 @@
-import axios from "axios";
-import { ChannelType } from "discord.js";
-import { 
-    fetchChannelPermissions,
-    fetchTextChannelData,
-    fetchVoiceChannelData,
-    fetchStageChannelData
-} from "../utils";
+import { GuildFeature, ChannelType } from "discord.js";
+import { loadCategory, loadChannel } from "../utils";
 
-/* returns an array with the banned members of the guild */
-export async function getBans(guild, limiter) {
-    const bans = await limiter.schedule({ id: "getBans::guild.bans.fetch" }, () => guild.bans.fetch());
-    return bans.map((ban) => ({ id: ban.user.id, reason: ban.reason }));
+/* restores the guild configuration */
+export async function loadConfig(guild, backup, limiter) {
+    if (backup.name) {
+        await limiter.schedule({ id: "loadConfig::guild.setName" }, () => guild.setName(backup.name));
+    }
+
+    if (backup.iconBase64) {
+        await limiter.schedule({ id: "loadConfig::guild.setIcon" }, () => guild.setIcon(Buffer.from(backup.iconBase64, "base64")));
+    } else if (backup.iconURL) {
+        await limiter.schedule({ id: "loadConfig::guild.setIcon" }, () => guild.setIcon(backup.iconURL));
+    }
+
+    if (backup.splashBase64) {
+        await limiter.schedule({ id: "loadConfig::guild.setSplash" }, () => guild.setSplash(Buffer.from(backup.splashBase64, "base64")));
+    } else if (backup.splashURL) {
+        await limiter.schedule({ id: "loadConfig::guild.setSplash" }, () => guild.setSplash(backup.splashURL));
+    }
+
+    if (backup.bannerBase64) {
+        await limiter.schedule({ id: "loadConfig::guild.setBanner" }, () => guild.setBanner(Buffer.from(backup.bannerBase64, "base64")));
+    } else if (backup.bannerURL) {
+        await limiter.schedule({ id: "loadConfig::guild.setBanner" }, () => guild.setBanner(backup.bannerURL));
+    }
+
+    if (backup.verificationLevel) {
+        await limiter.schedule({ id: "loadConfig::guild.setVerificationLevel" }, () => guild.setVerificationLevel(backup.verificationLevel));
+    }
+
+    if (backup.defaultMessageNotifications) {
+        await limiter.schedule({ id: "loadConfig::guild.setDefaultMessageNotifications" }, () => guild.setDefaultMessageNotifications(backup.defaultMessageNotifications));
+    }
+
+    const changeableExplicitLevel = guild.features.includes(GuildFeature.Community);
+    if (backup.explicitContentFilter && changeableExplicitLevel) {
+        await limiter.schedule({ id: "loadConfig::guild.setExplicitContentFilter" }, () => guild.setExplicitContentFilter(backup.explicitContentFilter));
+    }
+
+    // Role and channel maps which will get populated later (internal use only):
+    backup.roleMap = {};
+    backup.channelMap = {};
 }
 
-/* returns an array with the members of the guild */
-export async function getMembers(guild, limiter) {
-    const members = await limiter.schedule({ id: "getMembers::guild.members.fetch" }, () => guild.members.fetch());
+/* restore the guild roles */
+export async function loadRoles(guild, backup, limiter) {
+    for (let role of backup.roles) {
+        try {
+            if (role.isEveryone) {
+                await limiter.schedule({ id: `loadRoles::guild.roles.edit::everyone` }, () => guild.roles.edit(guild.roles.everyone, {
+                    permissions: BigInt(role.permissions),
+                    mentionable: role.mentionable
+                }));
 
-    return members.map((member) => ({
-        userId: member.user.id,
-        username: member.user.username,
-        discriminator: member.user.discriminator,
-        avatarUrl: member.user.avatarURL(),
-        joinedTimestamp: member.joinedTimestamp,
-        roles: member.roles.cache.map((role) => role.id),
-        bot: member.user.bot
-    }));
-}
-
-/* returns an array with the roles of the guild */
-export async function getRoles(guild, limiter) {
-    const roles = await limiter.schedule({ id: "getRoles::guild.roles.fetch" }, () => guild.roles.fetch());
-
-    return roles
-        .filter((role) => !role.managed)
-        .sort((a, b) => b.position - a.position)
-        .map((role) => ({
-            oldId: role.id,
-            name: role.name,
-            color: role.hexColor,
-            icon: role.iconURL(),
-            hoist: role.hoist,
-            permissions: role.permissions.bitfield.toString(),
-            mentionable: role.mentionable,
-            position: role.position,
-            isEveryone: guild.id == role.id
-        }));
-}
-
-/* returns an array with the emojis of the guild */
-export async function getEmojis(guild, options, limiter) {
-    const emojis = await limiter.schedule({ id: "getEmojis::guild.emojis.fetch" }, () => guild.emojis.fetch());
-    const collectedEmojis = [];
-
-    emojis.forEach(async (emoji) => {
-        if (emojis.length >= 50) return;
-
-        const data = { name: emoji.name };
-
-        if (options.saveImages && options.saveImages == "base64") {
-            const response = await axios.get(emoji.imageURL(), { responseType: "arraybuffer" });
-            data.base64 = Buffer.from(response.data, "binary").toString("base64");
-        } else {
-            data.url = emoji.imageURL();
-        }
-
-        collectedEmojis.push(data);
-    });
-
-    return collectedEmojis;
-}
-
-/* returns an array with the channels of the guild */
-export async function getChannels(guild, options, limiter) {
-    const channels = await limiter.schedule({ id: "getChannels::guild.channels.fetch" }, () => guild.channels.fetch());
-    const collectedChannels = { categories: [], others: [] };
-
-    const categories = channels
-        .filter((channel) => channel.type == ChannelType.GuildCategory)
-        .sort((a, b) => a.position - b.position)
-        .toJSON();
-
-    for (let category of categories) {
-        const categoryData = { name: category.name, permissions: fetchChannelPermissions(category), children: [] };
-
-        const children = category.children.cache.sort((a, b) => a.position - b.position).toJSON();
-
-        for (let child of children) {
-            let channelData;
-            if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
-                channelData = await fetchTextChannelData(child, options, limiter);
-            } else if (child.type == ChannelType.GuildVoice) {
-                channelData = fetchVoiceChannelData(child);
-            } else if (child.type == ChannelType.GuildStageVoice) {
-                channelData = await fetchStageChannelData(child, options, limiter);
+                backup.roleMap[role.oldId] = guild.roles.everyone;
             } else {
-                console.warn(`Unsupported channel type: ${child.type}`);
+                const createdRole = await limiter.schedule({ id: `loadRoles::guild.roles.create::${role.name}` }, () => guild.roles.create({
+                    name: role.name,
+                    color: role.color,
+                    icon: role.icon,
+                    hoist: role.hoist,
+                    permissions: BigInt(role.permissions),
+                    mentionable: role.mentionable,
+                    position: role.position
+                }));
+
+                backup.roleMap[role.oldId] = createdRole;
             }
-
-            if (channelData) {
-                channelData.oldId = child.id;
-                categoryData.children.push(channelData);
-            }
-        }
-
-        collectedChannels.categories.push(categoryData);
-    }
-
-    const others = channels
-        .filter((channel) => {
-            return (
-                !channel.parent &&
-                channel.type != ChannelType.GuildCategory &&
-                channel.type != ChannelType.AnnouncementThread &&
-                channel.type != ChannelType.PrivateThread &&
-                channel.type != ChannelType.PublicThread
-            );
-        })
-        .sort((a, b) => a.position - b.position)
-        .toJSON();
-
-    for (let channel of others) {
-        let channelData;
-        if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
-            channelData = await fetchTextChannelData(channel, options, limiter);
-        } else {
-            channelData = fetchVoiceChannelData(channel);
-        }
-        if (channelData) {
-            channelData.oldId = channel.id;
-            collectedChannels.others.push(channelData);
+        } catch (error) {
+            console.error(error.message);
         }
     }
-
-    return collectedChannels;
 }
 
-/* returns an array with the guilds automoderation rules */
-export async function getAutoModerationRules(guild, limiter) {
-    const rules = await limiter.schedule({ id: "getAutoModerationRules::guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch({ cache: false }));
-    const collectedRules = [];
+/* restore the guild channels */
+export async function loadChannels(guild, backup, options, limiter) {
+    for (let category of backup.channels.categories) {
+        const createdCategory = await loadCategory(category, guild, limiter);
 
-    rules.forEach((rule) => {
-        const actions = [];
+        for (let channel of category.children) {
+            const createdChannel = await loadChannel(channel, guild, createdCategory, options, limiter);
+            if (createdChannel) backup.channelMap[channel.oldId] = createdChannel;
+        }
+    }
 
-        rule.actions.forEach((action) => {
-            const copyAction = JSON.parse(JSON.stringify(action));
+    for (let channel of backup.channels.others) {
+        const createdChannel = await loadChannel(channel, guild, null, options, limiter);
+        if (createdChannel) backup.channelMap[channel.oldId] = createdChannel;
+    }
+}
 
-            if (copyAction.metadata.channelId) {
-                const channel = guild.channels.cache.get(copyAction.metadata.channelId);
+/* restore the automod rules */
+export async function loadAutoModRules(guild, backup, limiter) {
+    if (backup.autoModerationRules.length === 0) return;
 
-                if (channel) {
-                    copyAction.metadata.channelName = channel.name;
+    const roles = await limiter.schedule({ id: "loadAutoModRules::guild.roles.fetch" }, () => guild.roles.fetch());
+    const channels = await limiter.schedule({ id: "loadAutoModRules::guild.channels.fetch" }, () => guild.channels.fetch());
+
+    for (const autoModRule of backup.autoModerationRules) {
+        let actions = [];
+        for (const action of autoModRule.actions) {
+            let copyAction = JSON.parse(JSON.stringify(action));
+            if (action.metadata.channelName) {
+                const filteredFirstChannel = channels.filter(channel => channel.name === action.metadata.channelName && backup.channelMap[action.metadata.channelId] === channel).first();
+                if (filteredFirstChannel) {
+                    copyAction.metadata.channel = filteredFirstChannel.id;
+                    copyAction.metadata.channelName = null;
                     actions.push(copyAction);
                 }
-
             } else {
+                copyAction.metadata.channel = null;
+                copyAction.metadata.channelName = null;
                 actions.push(copyAction);
             }
-        });
+        }
 
-        /* filter out deleted roles and channels due to a potential bug with discord.js */
-        const exemptRoles = rule.exemptRoles.filter((role) => role != undefined);
-        const exemptChannels = rule.exemptChannels.filter((channel) => channel != undefined);
-
-        collectedRules.push({
-            name: rule.name,
-            eventType: rule.eventType,
-            triggerType: rule.triggerType,
-            triggerMetadata: rule.triggerMetadata,
+        const data = {
+            name: autoModRule.name,
+            eventType: autoModRule.eventType,
+            triggerType: autoModRule.triggerType,
+            triggerMetadata: autoModRule.triggerMetadata,
             actions: actions,
-            enabled: rule.enabled,
-            exemptRoles: exemptRoles.map((role) => ({ id: role.id, name: role.name })),
-            exemptChannels: exemptChannels.map((channel) => ({ id: channel.id, name: channel.name }))
-        });
-    });
+            enabled: autoModRule.enabled,
+            exemptRoles: autoModRule.exemptRoles?.map((exemptRole) => {
+                const filteredFirstRole = roles.filter(role => role.name === exemptRole.name && backup.roleMap[exemptRole.id] === role).first();
+                if (filteredFirstRole) return filteredFirstRole.id;
+            }),
+            exemptChannels: autoModRule.exemptChannels?.map((exemptChannel) => {
+                const filteredFirstChannel = channels.filter(channel => channel.name === exemptChannel.name && backup.channelMap[exemptChannel.id] === channel).first();
+                if (filteredFirstChannel) return filteredFirstChannel.id;
+            }),
+        };
 
-    return collectedRules;
+        await limiter.schedule({ id: "loadAutoModRules::guild.autoModerationRules.create" }, () => guild.autoModerationRules.create(data));
+    }
+}
 
+/* restore the afk configuration */
+export async function loadAFk(guild, backup, limiter) {
+    if (backup.afk) {
+        try {
+            await limiter.schedule({ id: "loadAFK::guild.setAFKChannel" }, () => guild.setAFKChannel(guild.channels.cache.find((channel) => channel.name == backup.afk.name && channel.type == ChannelType.GuildVoice)));
+            await limiter.schedule({ id: "loadAFK::guild.setAFKTimeout" }, () => guild.setAFKTimeout(backup.afk.timeout));
+        } catch (error) {
+            console.error(error.message);
+        }
+
+    }
+}
+
+/* restore guild emojis */
+export async function loadEmojis(guild, backup, limiter) {
+    for (let emoji of backup.emojis) {
+        try {
+            if (emoji.url) {
+                await limiter.schedule({ id: `loadEmojis::guild.emojis.create::${emoji.name}` }, () => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
+            } else if (emoji.base64) {
+                await limiter.schedule({ id: `loadEmojis::guild.emojis.create::${emoji.name}` }, () => guild.emojis.create({ name: emoji.name, attachment: Buffer.from(emoji.base64, "base64") }));
+            }
+        } catch (error) {
+            console.error(error.message);
+        }
+    }
+}
+
+/* restore guild bans */
+export async function loadBans(guild, backup, limiter) {
+    for (let ban of backup.bans) {
+        try {
+            await limiter.schedule({ id: `loadBans::guild.members.ban::${ban.id}` }, () => guild.members.ban(ban.id, { reason: ban.reason }));
+        } catch (error) {
+            console.error(error.message);
+        }
+    }
+}
+
+/* restore embedChannel configuraion */
+export async function loadEmbedChannel(guild, backup, limiter) {
+    if (backup.widget.channel) {
+        try {
+            await limiter.schedule({ id: "loadEmbedChannel::guild.setWidgetSettings" }, () => guild.setWidgetSettings({
+                enabled: backup.widget.enabled,
+                channel: guild.channels.cache.find((channel) => channel.name == backup.widget.channel)
+            }));
+        } catch (error) {
+            console.error(error.message);
+        }
+    }
+}
+
+/* restore the guild settings (final part, which requires everything else already restored) */
+export async function loadFinalSettings(guild, backup, limiter) {
+    // System Channel:
+    if (backup.systemChannel) {
+        const channels = await limiter.schedule({ id: "loadFinalSettings::guild.channels.fetch" }, () => guild.channels.fetch());
+        const filteredFirstChannel = channels.filter(channel => channel.name === backup.systemChannel.name).first();
+
+        await limiter.schedule({ id: "loadFinalSettings::guild.setSystemChannel" }, () => guild.setSystemChannel(filteredFirstChannel));
+        await limiter.schedule({ id: "loadFinalSettings::guild.setSystemChannelFlags" }, () => guild.setSystemChannelFlags(backup.systemChannel.flags));
+    }
+
+    // Boost Progress Bar:
+    if (backup.premiumProgressBarEnabled) {
+        await limiter.schedule({ id: "loadFinalSettings::guild.setPremiumProgressBarEnabled" }, () => guild.setPremiumProgressBarEnabled(backup.premiumProgressBarEnabled));
+    }
+}
+
+/* restore role assignments to members */
+export async function assignRolesToMembers(guild, backup, limiter) {
+    const members = await limiter.schedule({ id: "assignRolesToMembers::guild.members.fetch" }, () => guild.members.fetch());
+
+    for (let backupMember of backup.members) {
+        if (!backupMember.bot) { // Ignore bots
+            const member = members.get(backupMember.userId);
+            if (member) { // Backed up member exists in our new guild
+                const roles = backupMember.roles.map((oldRoleId) => {
+                    const newRole = backup.roleMap[oldRoleId];
+                    return newRole ? newRole.id : null;
+                }).filter(roleId => !member.roles.cache.has(roleId)); // Exclude roles the member already has
+
+                if (roles.length > 0) {
+                    await limiter.schedule({ id: `assignRolesToMembers::member.edit::${member.id}` }, () => member.edit({ roles: roles }));
+                }
+            }
+        }
+    }
 }
 
 export default {
-    getBans,
-    getMembers,
-    getRoles,
-    getEmojis,
-    getChannels,
-    getAutoModerationRules
+    loadConfig,
+    loadRoles,
+    loadChannels,
+    loadAutoModRules,
+    loadAFk,
+    loadEmojis,
+    loadBans,
+    loadEmbedChannel,
+    loadFinalSettings,
+    assignRolesToMembers
 };
