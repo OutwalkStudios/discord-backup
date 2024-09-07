@@ -217,9 +217,11 @@ export async function assignRolesToMembers(guild, backup, limiter) {
                 const roles = backupMember.roles.map((oldRoleId) => {
                     const newRole = backup.roleMap[oldRoleId];
                     return newRole ? newRole.id : null;
-                });
+                }).filter(roleId => !member.roles.cache.has(roleId)); // Exclude roles the member already has
 
-                await limiter.schedule({ id: `assignRolesToMembers::member.edit::${member.id}` }, () => member.edit({ roles: roles }));
+                if (roles.length > 0) {
+                    await limiter.schedule({ id: `assignRolesToMembers::member.edit::${member.id}` }, () => member.edit({ roles: roles }));
+                }
             }
         }
     }
