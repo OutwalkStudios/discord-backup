@@ -13,13 +13,19 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 let backups = `${__dirname}/backups`;
 if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 
+/* Progress helper function */
+function logProgress(task, current, total) {
+    const percentage = ((current / total) * 100).toFixed(2);
+    console.log(`[Progress] ${task}: ${current}/${total} (${percentage}%)`);
+}
+
 /* checks if user has 2fa permissions for 2fa required requests, otherwise warns them */
 function check2FA(options, guild, permission) {
     /* skip further processing when 2FA is not required */
     if (guild.mfaLevel == GuildMFALevel.None) return true;
-
+    
     /* log a warning when an action requires 2FA but 2FA has not been setup on the bot owner */
-    if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
+        if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
         console.log(`[WARNING] - 2FA is required by this server in order to backup ${permission}`);
     }
 
@@ -37,7 +43,7 @@ async function getBackupData(backupId) {
         if (file) {
             const backupData = JSON.parse(
                 fs.readFileSync(`${backups}${path.sep}${file}`)
-            );
+            );            
             resolve(backupData);
         } else {
             reject("No backup found");
@@ -63,6 +69,9 @@ async function fetch(backupId) {
 
 /* creates a new backup and saves it to the storage */
 async function create(guild, options = {}) {
+    const state = { status: "Starting backup..." };
+    console.log(state.status);
+
     const intents = new IntentsBitField(guild.client.options.intents);
     if (!intents.has(GatewayIntentBits.Guilds))
         throw new Error("GUILDS intent is required");
@@ -136,9 +145,18 @@ async function create(guild, options = {}) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
+    // Log progress for Auto Moderation Rules
+    state.status = "Saving auto moderation rules...";
+    console.log(state.status);
+
     if (check2FA(options, guild, "auto moderation rules")) {
         backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
     }
+
+
+    /* Updating state guild*/
+    state.status = "Saving guild icons and members...";
+    console.log(state.status);
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
@@ -177,16 +195,58 @@ async function create(guild, options = {}) {
         }
     }
 
+    // Log progress for Roles
+    state.status = "Saving roles...";
+    console.log(state.status);
     if (!options || !(options.doNotBackup || []).includes("roles")) {
-        backup.roles = await createFunctions.getRoles(guild, limiter);
+        const roles = await createFunctions.getRoles(guild, limiter);
+        const totalRoles = roles.length;
+        let savedRoles = 0;
+
+        for (const role of roles) {
+            savedRoles++;
+            logProgress("Roles", savedRoles, totalRoles);
+        }
+
+        backup.roles = roles;
     }
 
+    // Log progress for Emojis
+    state.status = "Saving emojis...";
+    console.log(state.status);
     if (!options || !(options.doNotBackup || []).includes("emojis")) {
-        backup.emojis = await createFunctions.getEmojis(guild, options, limiter);
+        const emojis = await createFunctions.getEmojis(guild, options, limiter);
+        const totalEmojis = emojis.length;
+        let savedEmojis = 0;
+
+        for (const emoji of emojis) {
+            savedEmojis++;
+            logProgress("Emojis", savedEmojis, totalEmojis);
+        }
+
+        backup.emojis = emojis;
     }
 
+
+    // Log progress for Channels
+    state.status = "Saving channels...";
+    console.log(state.status);
     if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(guild, options, limiter);
+        const channels = await createFunctions.getChannels(guild, options, limiter);
+        const totalChannels = channels.categories.length + channels.others.length;
+        let savedChannels = 0;
+
+        // Log the progress per channel
+        for (const category of channels.categories) {
+            savedChannels += category.children.length + 1; // +1 for category
+            logProgress("Channels", savedChannels, totalChannels);
+        }
+        for (const channel of channels.others) {
+            savedChannels++;
+            logProgress("Channels", savedChannels, totalChannels);
+        }
+
+        backup.channels = channels;
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
@@ -194,6 +254,9 @@ async function create(guild, options = {}) {
         const backupJSON = options.jsonBeautify ? JSON.stringify(backup, reviver, 4) : JSON.stringify(backup, reviver);
         fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
     }
+
+    state.status = "Backup complete!";
+    console.log(state.status);
 
     return backup;
 }
@@ -252,17 +315,50 @@ async function load(backup, guild, options) {
             await clearGuild(guild, limiter);
         }
 
+        // Log progress for base config
+        state.status = "Restoring base config...";
+        console.log(state.status);
+
         // Load base config:
         await Promise.all([
             loadFunctions.loadConfig(guild, backupData, limiter),
             loadFunctions.loadBans(guild, backupData, limiter),
         ]);
 
-        // Load roles:
-        await loadFunctions.loadRoles(guild, backupData, limiter);
+        // Log progress for Roles
+        state.status = "Restoring roles...";
+        console.log(state.status);
 
-        // Load channels:
-        await loadFunctions.loadChannels(guild, backupData, options, limiter);
+        // Load roles:
+        const totalRoles = backupData.roles.length;
+        let restoredRoles = 0;
+        for (const role of backupData.roles) {
+            await loadFunctions.loadRoles(guild, backupData, limiter);
+            restoredRoles++;
+            logProgress("Roles", restoredRoles, totalRoles);
+        }
+
+        // Log progress for Channels
+        state.status = "Restoring channels...";
+        console.log(state.status);
+
+         // Load channels:
+        const totalChannels = backupData.channels.categories.length + backupData.channels.others.length;
+        let restoredChannels = 0;
+        for (const category of backupData.channels.categories) {
+            await loadFunctions.loadCategory(category, guild, limiter);
+            restoredChannels += category.children.length + 1; // +1 for category
+            logProgress("Channels", restoredChannels, totalChannels);
+        }
+        for (const channel of backupData.channels.others) {
+            await loadFunctions.loadChannel(channel, guild, null, options, limiter);
+            restoredChannels++;
+            logProgress("Channels", restoredChannels, totalChannels);
+        }
+
+        // Log progress for other settings
+        state.status = "Restoring other settings...";
+        console.log(state.status);
 
         // Load config, which requires channels:
         await Promise.all([
@@ -272,15 +368,27 @@ async function load(backup, guild, options) {
             loadFunctions.loadFinalSettings(guild, backupData, limiter),
         ]);
 
+        state.status = "Restoring role assignments...";
+
         // Assign roles:
         if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
             await loadFunctions.assignRolesToMembers(guild, backupData, limiter);
         }
     }
 
-    // Restore Emojis:
+    // Log progress for Emojis
+    state.status = "Restoring emojis...";
+    console.log(state.status);
+
+     // Restore Emojis:
     if (!options || !(options.doNotLoad || []).includes("emojis")) {
-        await loadFunctions.loadEmojis(guild, backupData, limiter);
+        const totalEmojis = backupData.emojis.length;
+        let restoredEmojis = 0;
+        for (const emoji of backupData.emojis) {
+            await loadFunctions.loadEmojis(guild, backupData, limiter);
+            restoredEmojis++;
+            logProgress("Emojis", restoredEmojis, totalEmojis);
+        }
     }
 
     return backupData;

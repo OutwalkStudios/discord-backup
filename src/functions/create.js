@@ -7,6 +7,12 @@ import {
     fetchStageChannelData
 } from "../utils";
 
+/* Helper function to check if a channel should be excluded */
+function shouldExcludeChannel(channel, doNotBackup) {
+    const channelList = doNotBackup.channels || [];
+    return channelList.includes(channel.name) || channelList.includes(channel.id);
+}
+
 /* returns an array with the banned members of the guild */
 export async function getBans(guild, limiter) {
     const bans = await limiter.schedule({ id: "getBans::guild.bans.fetch" }, () => guild.bans.fetch());
@@ -76,15 +82,22 @@ export async function getChannels(guild, options, limiter) {
     const channels = await limiter.schedule({ id: "getChannels::guild.channels.fetch" }, () => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
 
+    const doNotBackup = options.doNotBackup.find(item => item.channels) || { channels: [] };
+
     const categories = channels
         .filter((channel) => channel.type == ChannelType.GuildCategory)
         .sort((a, b) => a.position - b.position)
         .toJSON();
 
     for (let category of categories) {
+        if (shouldExcludeChannel(category, doNotBackup)) continue; // Skip excluded categories
+
         const categoryData = { name: category.name, permissions: fetchChannelPermissions(category), children: [] };
 
-        const children = category.children.cache.sort((a, b) => a.position - b.position).toJSON();
+        const children = category.children.cache
+            .filter((child) => !shouldExcludeChannel(child, doNotBackup)) // Skip excluded channels
+            .sort((a, b) => a.position - b.position)
+            .toJSON();
 
         for (let child of children) {
             let channelData;
@@ -108,17 +121,19 @@ export async function getChannels(guild, options, limiter) {
     }
 
     const others = channels
-        .filter((channel) => {
-            return (
-                !channel.parent &&
-                channel.type != ChannelType.GuildCategory &&
-                channel.type != ChannelType.AnnouncementThread &&
-                channel.type != ChannelType.PrivateThread &&
-                channel.type != ChannelType.PublicThread
-            );
-        })
-        .sort((a, b) => a.position - b.position)
-        .toJSON();
+    .filter((channel) => {
+        return (
+            !channel.parent &&
+            channel.type != ChannelType.GuildCategory &&
+            channel.type != ChannelType.AnnouncementThread &&
+            channel.type != ChannelType.PrivateThread &&
+            channel.type != ChannelType.PublicThread &&
+            !shouldExcludeChannel(channel, doNotBackup)
+        );
+    })
+    .sort((a, b) => a.position - b.position)
+    .toJSON();
+
 
     for (let channel of others) {
         let channelData;
