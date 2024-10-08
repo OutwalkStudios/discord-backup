@@ -9,8 +9,10 @@ import {
 
 /* Helper function to check if a channel should be excluded */
 function shouldExcludeChannel(channel, doNotBackup) {
-    const channelList = doNotBackup.channels || [];
-    return channelList.includes(channel.name) || channelList.includes(channel.id);
+    const channelExclusions = doNotBackup.find(item => typeof item === 'object' && item.channels);
+    const channelList = channelExclusions ? channelExclusions.channels : [];
+    
+    return doNotBackup.includes("channels") || channelList.includes(channel.id);
 }
 
 /* returns an array with the banned members of the guild */
@@ -81,8 +83,10 @@ export async function getEmojis(guild, options, limiter) {
 export async function getChannels(guild, options, limiter) {
     const channels = await limiter.schedule({ id: "getChannels::guild.channels.fetch" }, () => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
+    let totalChannels = 0;  // Keep track of channels only
+    let totalThreads = 0;   // Keep track of threads only
 
-    const doNotBackup = options.doNotBackup.find(item => item.channels) || { channels: [] };
+    const doNotBackup = options.doNotBackup || [];
 
     const categories = channels
         .filter((channel) => channel.type == ChannelType.GuildCategory)
@@ -101,8 +105,11 @@ export async function getChannels(guild, options, limiter) {
 
         for (let child of children) {
             let channelData;
-            if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
+
+            // Handle text-based channels (which may have threads)
+            if (child.type === ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
                 channelData = await fetchTextChannelData(child, options, limiter);
+                totalThreads += channelData.threads.length;
             } else if (child.type == ChannelType.GuildVoice) {
                 channelData = fetchVoiceChannelData(child);
             } else if (child.type == ChannelType.GuildStageVoice) {
@@ -114,6 +121,7 @@ export async function getChannels(guild, options, limiter) {
             if (channelData) {
                 channelData.oldId = child.id;
                 categoryData.children.push(channelData);
+                totalChannels++;  // Increment only for child channels
             }
         }
 
@@ -121,37 +129,42 @@ export async function getChannels(guild, options, limiter) {
     }
 
     const others = channels
-    .filter((channel) => {
-        return (
-            !channel.parent &&
-            channel.type != ChannelType.GuildCategory &&
-            channel.type != ChannelType.AnnouncementThread &&
-            channel.type != ChannelType.PrivateThread &&
-            channel.type != ChannelType.PublicThread &&
-            !shouldExcludeChannel(channel, doNotBackup)
-        );
-    })
-    .sort((a, b) => a.position - b.position)
-    .toJSON();
-
+        .filter((channel) => {
+            return (
+                !channel.parent &&
+                channel.type != ChannelType.GuildCategory &&
+                channel.type != ChannelType.AnnouncementThread &&
+                channel.type != ChannelType.PrivateThread &&
+                channel.type != ChannelType.PublicThread &&
+                !shouldExcludeChannel(channel, doNotBackup)
+            );
+        })
+        .sort((a, b) => a.position - b.position)
+        .toJSON();
 
     for (let channel of others) {
         let channelData;
-        if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
+
+        // Handle text-based channels (which may have threads)
+        if (channel.type === ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
             channelData = await fetchTextChannelData(channel, options, limiter);
-        } else {
+            totalThreads += channelData.threads.length;
+        } else if (channel.type == ChannelType.GuildVoice) {
             channelData = fetchVoiceChannelData(channel);
         }
+
         if (channelData) {
             channelData.oldId = channel.id;
             collectedChannels.others.push(channelData);
+            totalChannels++;  // Increment only for channels
         }
     }
 
-    return collectedChannels;
+    // Return both the channels and the total count
+    return { collectedChannels, totalChannels, totalThreads };
 }
 
-/* returns an array with the guilds automoderation rules */
+/* returns an array with the guild's automoderation rules */
 export async function getAutoModerationRules(guild, limiter) {
     const rules = await limiter.schedule({ id: "getAutoModerationRules::guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch({ cache: false }));
     const collectedRules = [];
@@ -201,5 +214,5 @@ export default {
     getRoles,
     getEmojis,
     getChannels,
-    getAutoModerationRules
+    getAutoModerationRules,
 };
