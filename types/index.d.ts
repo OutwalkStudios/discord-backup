@@ -22,7 +22,7 @@ export declare interface CreateOptions {
     maxMessagesPerChannel?: number;
     jsonSave?: boolean;
     jsonBeautify?: boolean;
-    doNotBackup?: string[];
+    doNotBackup?: (string | { channels: string[] })[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;

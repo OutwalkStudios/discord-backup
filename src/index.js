@@ -17,7 +17,7 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 function check2FA(options, guild, permission) {
     /* skip further processing when 2FA is not required */
     if (guild.mfaLevel == GuildMFALevel.None) return true;
-
+    
     /* log a warning when an action requires 2FA but 2FA has not been setup on the bot owner */
     if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
         console.log(`[WARNING] - 2FA is required by this server in order to backup ${permission}`);
@@ -25,6 +25,7 @@ function check2FA(options, guild, permission) {
 
     return guild.client.user.mfaEnabled;
 }
+
 
 /* checks if a backup exists and returns its data */
 async function getBackupData(backupId) {
@@ -37,7 +38,7 @@ async function getBackupData(backupId) {
         if (file) {
             const backupData = JSON.parse(
                 fs.readFileSync(`${backups}${path.sep}${file}`)
-            );
+            );            
             resolve(backupData);
         } else {
             reject("No backup found");
@@ -63,9 +64,12 @@ async function fetch(backupId) {
 
 /* creates a new backup and saves it to the storage */
 async function create(guild, options = {}) {
+    const state = { status: "Starting backup..." };
+
     const intents = new IntentsBitField(guild.client.options.intents);
     if (!intents.has(GatewayIntentBits.Guilds))
         throw new Error("GUILDS intent is required");
+    console.log(state.status);
 
     options = {
         backupId: null,
@@ -123,14 +127,14 @@ async function create(guild, options = {}) {
     }
 
     limiter.on("error", async (error) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`ERROR: ${error.message}`);
     });
 
     limiter.on("failed", (error, jobInfo) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
@@ -190,17 +194,22 @@ async function create(guild, options = {}) {
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
-        const reviver = (key, value) => typeof value == "bigint" ? value.toString() : value;
+        const reviver = (key, value) => typeof value === "bigint" ? value.toString() : value;
         const backupJSON = options.jsonBeautify ? JSON.stringify(backup, reviver, 4) : JSON.stringify(backup, reviver);
         fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
     }
+
+    state.status = "Backup complete!";
+    console.log(state.status);
 
     return backup;
 }
 
 /* loads a backup for a guild */
 async function load(backup, guild, options) {
+    const state = { status: "Restoring..." };
     if (!guild) throw new Error("Invalid Guild!");
+    console.log(state.status);
 
     options = {
         clearGuildBeforeRestore: true,
@@ -233,14 +242,14 @@ async function load(backup, guild, options) {
     }
 
     limiter.on("error", async (error) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`ERROR: ${error.message}`);
     });
 
     limiter.on("failed", (error, jobInfo) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
@@ -282,6 +291,9 @@ async function load(backup, guild, options) {
     if (!options || !(options.doNotLoad || []).includes("emojis")) {
         await loadFunctions.loadEmojis(guild, backupData, limiter);
     }
+
+    state.status = "Restoration complete!";
+    console.log(state.status);
 
     return backupData;
 }
