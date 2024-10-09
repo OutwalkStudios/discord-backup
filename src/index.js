@@ -13,12 +13,6 @@ const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
 let backups = `${__dirname}/backups`;
 if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 
-/* Progress helper function */
-function logProgress(task, current, total) {
-    const percentage = ((current / total) * 100).toFixed(2);
-    console.log(`[Progress] ${task}: ${current}/${total} (${percentage}%)`);
-}
-
 /* checks if user has 2fa permissions for 2fa required requests, otherwise warns them */
 function check2FA(options, guild, permission) {
     /* skip further processing when 2FA is not required */
@@ -146,30 +140,9 @@ async function create(guild, options = {}) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
-    // Log
-    state.status = "Saving auto moderation rules...";
-    console.log(state.status);
     if (check2FA(options, guild, "auto moderation rules")) {
-        const rules = await createFunctions.getAutoModerationRules(guild, limiter);
-        const totalRules = rules.length;
-        let savedRules = 0;
-
-        for (const rule of rules) {
-            savedRules++;
-            logProgress("Auto Moderation Rules", savedRules, totalRules);
-        }
-
-        backup.autoModerationRules = rules;
+        backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
     }
-
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
-
-    // Log
-    state.status = "Saving guild icons and members...";
-    console.log(state.status);
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
@@ -208,79 +181,17 @@ async function create(guild, options = {}) {
         }
     }
 
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
-
-    // Log
-    state.status = "Saving roles...";
-    console.log(state.status);
     if (!options || !(options.doNotBackup || []).includes("roles")) {
-        const roles = await createFunctions.getRoles(guild, limiter);
-        const totalRoles = roles.length;
-        let savedRoles = 0;
-
-        for (const role of roles) {
-            savedRoles++;
-            logProgress("Roles", savedRoles, totalRoles);
-        }
-
-        backup.roles = roles;
+        backup.roles = await createFunctions.getRoles(guild, limiter);
     }
 
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
-
-    // Log
-    state.status = "Saving emojis...";
-    console.log(state.status);
     if (!options || !(options.doNotBackup || []).includes("emojis")) {
-        const emojis = await createFunctions.getEmojis(guild, options, limiter);
-        const totalEmojis = emojis.length;
-        let savedEmojis = 0;
-
-        for (const emoji of emojis) {
-            savedEmojis++;
-            logProgress("Emojis", savedEmojis, totalEmojis);
-        }
-
-        backup.emojis = emojis;
+        backup.emojis = await createFunctions.getEmojis(guild, options, limiter);
     }
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
-
-    // Log
-    state.status = "Saving Channels...";
-    console.log(state.status);
 
     if (!options || !(options.doNotBackup || []).includes("channels")) {
-        const { collectedChannels, totalChannels, totalThreads } = await createFunctions.getChannels(guild, options, limiter);
-        let savedChannels = 0;
-        let savedThreads = 0;
-    
-        // Process Channels Within Categories
-        for (const category of collectedChannels.categories) {
-            for (const child of category.children) {
-                savedChannels++;  // Increment for child channels only
-                logProgress("Channels", savedChannels, totalChannels);
-            }
-        }
-    
-        // Process Non-Categorized Channels
-        for (const channel of collectedChannels.others) {
-            savedChannels++;  // Increment for other channels
-            logProgress("Channels", savedChannels, totalChannels);
-        }
-    
-        backup.channels = collectedChannels;
-    }    
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
+        backup.channels = await createFunctions.getChannels(guild, options, limiter);
+    }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
         const reviver = (key, value) => typeof value === "bigint" ? value.toString() : value;
@@ -350,45 +261,17 @@ async function load(backup, guild, options) {
             await clearGuild(guild, limiter);
         }
 
-        // Log
-        state.status = "Restoring base config...";
-        console.log(state.status);
-
         // Load base config:
         await Promise.all([
             loadFunctions.loadConfig(guild, backupData, limiter),
             loadFunctions.loadBans(guild, backupData, limiter),
         ]);
 
-        // Log
-        state.status = "Done.";
-        console.log(state.status);
-
-        // Log
-        state.status = "Restoring roles...";
-        console.log(state.status);
-
         // Load roles:
         await loadFunctions.loadRoles(guild, backupData, limiter);
 
-        // Log
-        state.status = "Done.";
-        console.log(state.status);
-
-        // Log
-        state.status = "Restoring Channels...";
-        console.log(state.status);
-
         // Load channels:
         await loadFunctions.loadChannels(guild, backupData, options, limiter);
-
-        // Log
-        state.status = "Done.";
-        console.log(state.status);
-
-        // Log
-        state.status = "Restoring Config...";
-        console.log(state.status);
 
         // Load config, which requires channels:
         await Promise.all([
@@ -402,24 +285,12 @@ async function load(backup, guild, options) {
         if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
             await loadFunctions.assignRolesToMembers(guild, backupData, limiter);
         }
-
-        // Log
-        state.status = "Done.";
-        console.log(state.status);
     }
-
-    // Log
-    state.status = "Restoring Emojis...";
-    console.log(state.status);
 
     // Restore Emojis:
     if (!options || !(options.doNotLoad || []).includes("emojis")) {
         await loadFunctions.loadEmojis(guild, backupData, limiter);
     }
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
 
     state.status = "Restoration complete!";
     console.log(state.status);

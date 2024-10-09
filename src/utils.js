@@ -17,6 +17,12 @@ const MAX_BITRATE_PER_TIER = {
     [GuildPremiumTier.Tier3]: 384000
 };
 
+/* Progress helper function */
+export function logProgress(task, current, total) {
+    const percentage = ((current / total) * 100).toFixed(2);
+    console.log(`[Progress] ${task}: ${current}/${total} (${percentage}%)`);
+}
+
 /* gets the permissions for a channel */
 export function fetchChannelPermissions(channel) {
     const permissions = [];
