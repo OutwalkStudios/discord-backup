@@ -5,7 +5,7 @@ import {
     fetchTextChannelData,
     fetchVoiceChannelData,
     fetchStageChannelData,
-    logProgress
+    logStatus
 } from "../utils";
 
 /* Helper function to check if a channel should be excluded */
@@ -17,60 +17,41 @@ function shouldExcludeChannel(channel, doNotBackup) {
 }
 
 /* returns an array with the banned members of the guild */
-export async function getBans(guild, limiter) {
-    // Log
-    let state = { status: "Saving Bans..." };
-    console.log(state.status);
+export async function getBans(guild, limiter, options) {
 
     const bans = await limiter.schedule({ id: "getBans::guild.bans.fetch" }, () => guild.bans.fetch());
     const totalBans = bans.size;
 
-    // Check if there are no bans to back up
-    if (totalBans === 0) {
-        console.log("No bans to back up.");
-        state.status = "Done.";
-        console.log(state.status);
-        return [];
-    }
+    const result = [];
 
     let savedBans = 0;
-    const result = bans.map((ban) => {
-        console.log(`Backing up Ban: User ID: ${ban.user.id}, Reason: ${ban.reason || "No reason provided"}`);
+    for (const ban of bans.values()) {
+        const info = `Backed up Ban: User ID: ${ban.user.id}, Reason: ${ban.reason || "No reason provided"}`
         savedBans++;
-        logProgress("Bans", savedBans, totalBans); // Progress tracking for each ban
-        return { id: ban.user.id, reason: ban.reason };
-    });
+        await logStatus("Bans", savedBans, totalBans, options, info);
 
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
+        // Add the processed ban to the result array
+        result.push({ id: ban.user.id, reason: ban.reason });
+    }
 
     return result;
 }
 
 /* returns an array with the members of the guild */
-export async function getMembers(guild, limiter) {
-    // Log
-    let state = { status: "Saving Members..." };
-    console.log(state.status);
+export async function getMembers(guild, limiter, options) {
 
     const members = await limiter.schedule({ id: "getMembers::guild.members.fetch" }, () => guild.members.fetch());
     const totalMembers = members.size;
 
-    // Check if there are no members to back up
-    if (totalMembers === 0) {
-        console.log("No members to back up.");
-        state.status = "Done.";
-        console.log(state.status);
-        return [];
-    }
+    const result = [];
 
     let savedMembers = 0;
-    const result = members.map((member) => {
-        console.log(`Backing up Member: ${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`);
+    for (const member of members.values()) {
+        const info = `Backed up Member: ${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`
         savedMembers++;
-        logProgress("Members", savedMembers, totalMembers); // Progress tracking for each member
-        return {
+        await logStatus("Members", savedMembers, totalMembers, options, info);
+
+        result.push({
             userId: member.user.id,
             username: member.user.username,
             discriminator: member.user.discriminator,
@@ -78,21 +59,14 @@ export async function getMembers(guild, limiter) {
             joinedTimestamp: member.joinedTimestamp,
             roles: member.roles.cache.map((role) => role.id),
             bot: member.user.bot
-        };
-    });
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
+        });
+    }
 
     return result;
 }
 
 /* returns an array with the roles of the guild */
-export async function getRoles(guild, limiter) {
-    // Log
-    let state = { status: "Saving Roles..." };
-    console.log(state.status);
+export async function getRoles(guild, limiter, options) {
 
     const roles = await limiter.schedule({ id: "getRoles::guild.roles.fetch" }, () => guild.roles.fetch());
     
@@ -100,21 +74,16 @@ export async function getRoles(guild, limiter) {
     const filteredRoles = roles.filter((role) => !role.managed).sort((a, b) => b.position - a.position);
     const totalRoles = filteredRoles.size;
 
-    // Check if there are no user-created roles to back up
-    if (totalRoles === 0) {
-        console.log("No user-created roles to back up.");
-        state.status = "Done.";
-        console.log(state.status);
-        return [];
-    }
+    const result = [];
 
     let savedRoles = 0;
 
-    const result = filteredRoles.map((role) => {
-        console.log(`Backing up Role: ${role.name} (ID: ${role.id})`);
+    for (const role of filteredRoles.values()) {
+        const info = `Backed up Role: ${role.name} (ID: ${role.id})`
         savedRoles++;
-        logProgress("Roles", savedRoles, totalRoles); // Progress tracking for each role
-        return {
+        await logStatus("Roles", savedRoles, totalRoles, options, info);
+
+        result.push({
             oldId: role.id,
             name: role.name,
             color: role.hexColor,
@@ -124,38 +93,23 @@ export async function getRoles(guild, limiter) {
             mentionable: role.mentionable,
             position: role.position,
             isEveryone: guild.id == role.id
-        };
-    });
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
+        });
+    }
 
     return result;
 }
 
 /* returns an array with the emojis of the guild */
 export async function getEmojis(guild, options, limiter) {
-    // Log
-    let state = { status: "Saving Emojis..." };
-    console.log(state.status);
 
     const emojis = await limiter.schedule({ id: "getEmojis::guild.emojis.fetch" }, () => guild.emojis.fetch());
     const totalEmojis = emojis.size;
-
-    // Check if there are no emojis to backup
-    if (totalEmojis === 0) {
-        console.log("No emojis to back up.");
-        state.status = "Done.";
-        console.log(state.status);
-        return [];
-    }
 
     let savedEmojis = 0;
     const collectedEmojis = [];
 
     for (const emoji of emojis.values()) {
-        console.log(`Backing up Emoji: ${emoji.name} (ID: ${emoji.id})`);
+        const info = `Backed up Emoji: ${emoji.name} (ID: ${emoji.id})`
         if (emojis.length >= 50) break;
 
         const data = { name: emoji.name };
@@ -169,26 +123,19 @@ export async function getEmojis(guild, options, limiter) {
 
         collectedEmojis.push(data);
         savedEmojis++;
-        logProgress("Emojis", savedEmojis, totalEmojis); // Progress tracking for each emoji
+        await logStatus("Emojis", savedEmojis, totalEmojis, options, info);
     }
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
 
     return collectedEmojis;
 }
 
 /* returns an array with the channels of the guild */
 export async function getChannels(guild, options, limiter) {
-    // Log
-    let state = { status: "Saving Channels..." };
-    console.log(state.status);
 
     const channels = await limiter.schedule({ id: "getChannels::guild.channels.fetch" }, () => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
-    let totalChannels = 0;  // Keep track of channels only
-    let savedChannels = 0;  // For progress tracking
+    let totalChannels = 0;
+    let savedChannels = 0;
 
     const doNotBackup = options.doNotBackup || [];
 
@@ -201,14 +148,6 @@ export async function getChannels(guild, options, limiter) {
     totalChannels = channels.filter(
         (channel) => channel.type !== ChannelType.GuildCategory && !shouldExcludeChannel(channel, doNotBackup)
     ).size;
-
-    // Check if there are no channels to back up
-    if (totalChannels === 0) {
-        console.log("No channels to back up.");
-        state.status = "Done.";
-        console.log(state.status);
-        return { categories: [], others: [] };
-    }
 
     // Process categories and their children
     for (let category of categories) {
@@ -224,8 +163,7 @@ export async function getChannels(guild, options, limiter) {
         for (let child of children) {
             let channelData;
 
-            // Log the channel being backed up
-            console.log(`Backing up Channel: ${child.name} (Category: ${category.name})`);
+            const info = `Backed up Channel: ${child.name} (Category: ${category.name})`
 
             // Handle text-based channels (which may have threads)
             if (child.type === ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
@@ -241,8 +179,8 @@ export async function getChannels(guild, options, limiter) {
             if (channelData) {
                 channelData.oldId = child.id;
                 categoryData.children.push(channelData);
-                savedChannels++;  // Increment saved channels
-                logProgress("Channels", savedChannels, totalChannels);  // Progress logging for each channel
+                savedChannels++;
+                await logStatus("Channels", savedChannels, totalChannels, options, info);
             }
         }
 
@@ -268,7 +206,7 @@ export async function getChannels(guild, options, limiter) {
         let channelData;
 
         // Log the channel being backed up
-        console.log(`Backing up Channel: ${channel.name}`);
+        const info = `Backed up Channel: ${channel.name}`
 
         // Handle text-based channels (which may have threads)
         if (channel.type === ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
@@ -279,43 +217,28 @@ export async function getChannels(guild, options, limiter) {
         if (channelData) {
             channelData.oldId = channel.id;
             collectedChannels.others.push(channelData);
-            savedChannels++;  // Increment saved channels
-            logProgress("Channels", savedChannels, totalChannels);  // Progress logging for each channel
+            savedChannels++;
+            await logStatus("Channels", savedChannels, totalChannels, options, info);
         }
     }
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
 
     return collectedChannels;
 }
 
 /* returns an array with the guild's automoderation rules */
-export async function getAutoModerationRules(guild, limiter) {
-    // Log
-    let state = { status: "Saving auto moderation rules..." };
-    console.log(state.status);
-
+export async function getAutoModerationRules(guild, limiter, options) {
+    
     const rules = await limiter.schedule({ id: "getAutoModerationRules::guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch({ cache: false }));
     const totalRules = rules.size;
-
-    // Check if there are no automoderation rules to backup
-    if (totalRules === 0) {
-        console.log("No automoderation rules to back up.");
-        state.status = "Done.";
-        console.log(state.status);
-        return [];
-    }
-
+    
     let savedRules = 0;
     const collectedRules = [];
 
-    rules.forEach((rule) => {
-        console.log(`Backing up AutoModeration Rule: ${rule.name} (ID: ${rule.id})`);
+    for (const rule of rules.values()) {
+        const info = `Backed up AutoModeration Rule: ${rule.name} (ID: ${rule.id})`
         const actions = [];
 
-        rule.actions.forEach((action) => {
+        for (const action of rule.actions) {
             const copyAction = JSON.parse(JSON.stringify(action));
 
             if (copyAction.metadata.channelId) {
@@ -329,7 +252,7 @@ export async function getAutoModerationRules(guild, limiter) {
             } else {
                 actions.push(copyAction);
             }
-        });
+        }
 
         /* filter out deleted roles and channels due to a potential bug with discord.js */
         const exemptRoles = rule.exemptRoles.filter((role) => role != undefined);
@@ -347,12 +270,8 @@ export async function getAutoModerationRules(guild, limiter) {
         });
 
         savedRules++;
-        logProgress("Auto Moderation Rules", savedRules, totalRules); // Progress tracking for each rule
-    });
-
-    // Log
-    state.status = "Done.";
-    console.log(state.status);
+        await logStatus("Auto Moderation Rules", savedRules, totalRules, options, info);
+    }
 
     return collectedRules;
 }

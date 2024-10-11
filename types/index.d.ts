@@ -28,6 +28,7 @@ export declare interface CreateOptions {
     speed?: number;
     verbose?: boolean;
     ignore2FA?: boolean;
+    onStatusChange?: (status: BackupStatus) => void;
 }
 
 export declare interface LoadOptions {
@@ -36,6 +37,7 @@ export declare interface LoadOptions {
     speed?: number;
     verbose?: boolean;
     doNotLoad?: string[];
+    onStatusChange?: (status: BackupStatus) => void;
 }
 
 export declare interface SystemChannelData {

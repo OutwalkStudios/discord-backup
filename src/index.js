@@ -26,7 +26,6 @@ function check2FA(options, guild, permission) {
     return guild.client.user.mfaEnabled;
 }
 
-
 /* checks if a backup exists and returns its data */
 async function getBackupData(backupId) {
     return new Promise((resolve, reject) => {
@@ -64,12 +63,10 @@ async function fetch(backupId) {
 
 /* creates a new backup and saves it to the storage */
 async function create(guild, options = {}) {
-    const state = { status: "Starting backup..." };
 
     const intents = new IntentsBitField(guild.client.options.intents);
     if (!intents.has(GatewayIntentBits.Guilds))
         throw new Error("GUILDS intent is required");
-    console.log(state.status);
 
     options = {
         backupId: null,
@@ -82,6 +79,7 @@ async function create(guild, options = {}) {
         speed: 250,
         verbose: false,
         ignore2FA: false,
+        onStatusChange: null,
         ...options,
     };
 
@@ -141,7 +139,7 @@ async function create(guild, options = {}) {
     });
 
     if (check2FA(options, guild, "auto moderation rules")) {
-        backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
+        backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter, options);
     }
 
     if (guild.iconURL()) {
@@ -172,17 +170,17 @@ async function create(guild, options = {}) {
     }
 
     if (options && options.backupMembers) {
-        backup.members = await createFunctions.getMembers(guild, limiter);
+        backup.members = await createFunctions.getMembers(guild, limiter, options);
     }
 
     if (!options || !(options.doNotBackup || []).includes("bans")) {
         if (check2FA(options, guild, "bans")) {
-            backup.bans = await createFunctions.getBans(guild, limiter);
+            backup.bans = await createFunctions.getBans(guild, limiter, options);
         }
     }
 
     if (!options || !(options.doNotBackup || []).includes("roles")) {
-        backup.roles = await createFunctions.getRoles(guild, limiter);
+        backup.roles = await createFunctions.getRoles(guild, limiter, options);
     }
 
     if (!options || !(options.doNotBackup || []).includes("emojis")) {
@@ -199,17 +197,12 @@ async function create(guild, options = {}) {
         fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
     }
 
-    state.status = "Backup complete!";
-    console.log(state.status);
-
     return backup;
 }
 
 /* loads a backup for a guild */
 async function load(backup, guild, options) {
-    const state = { status: "Restoring..." };
     if (!guild) throw new Error("Invalid Guild!");
-    console.log(state.status);
 
     options = {
         clearGuildBeforeRestore: true,
@@ -217,6 +210,7 @@ async function load(backup, guild, options) {
         speed: 250,
         doNotLoad: [],
         verbose: false,
+        onStatusChange: null,
         ...options,
     };
 
@@ -261,39 +255,42 @@ async function load(backup, guild, options) {
             await clearGuild(guild, limiter);
         }
 
-        // Load base config:
+
         await Promise.all([
-            loadFunctions.loadConfig(guild, backupData, limiter),
-            loadFunctions.loadBans(guild, backupData, limiter),
+            loadFunctions.loadConfig(guild, backupData, limiter, options),
+            loadFunctions.loadBans(guild, backupData, limiter, options),
         ]);
+    }
 
-        // Load roles:
-        await loadFunctions.loadRoles(guild, backupData, limiter);
+    // Load roles:
+    if (!options || !(options.doNotLoad || []).includes("roles")) {
+        await loadFunctions.loadRoles(guild, backupData, limiter, options);
+    }
 
-        // Load channels:
+    // Load channels:
+    if (!options || !(options.doNotLoad || []).includes("channels")) {
         await loadFunctions.loadChannels(guild, backupData, options, limiter);
+    }
 
-        // Load config, which requires channels:
+    // Load remaining configuration (AFK settings, embed channels, auto moderation, etc.):
+    if (!options || !(options.doNotLoad || []).includes("main")) {
         await Promise.all([
-            loadFunctions.loadAFk(guild, backupData, limiter),
-            loadFunctions.loadEmbedChannel(guild, backupData, limiter),
-            loadFunctions.loadAutoModRules(guild, backupData, limiter),
-            loadFunctions.loadFinalSettings(guild, backupData, limiter),
+            loadFunctions.loadAFk(guild, backupData, limiter, options),
+            loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+            loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+            loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
         ]);
+    }
 
-        // Assign roles:
-        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
-            await loadFunctions.assignRolesToMembers(guild, backupData, limiter);
-        }
+    // Assign roles:
+    if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
+        await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
     }
 
     // Restore Emojis:
     if (!options || !(options.doNotLoad || []).includes("emojis")) {
-        await loadFunctions.loadEmojis(guild, backupData, limiter);
+        await loadFunctions.loadEmojis(guild, backupData, limiter, options);
     }
-
-    state.status = "Restoration complete!";
-    console.log(state.status);
 
     return backupData;
 }
