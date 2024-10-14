@@ -68,12 +68,18 @@ async function create(guild, options = {}) {
     if (!intents.has(GatewayIntentBits.Guilds))
         throw new Error("GUILDS intent is required");
 
+    // Ensure `toBackup` and `doNotBackup` are not used together
+    if (options.toBackup && options.doNotBackup) {
+        throw new Error("You cannot use both 'toBackup' and 'doNotBackup' options at the same time.");
+    }
+
     options = {
         backupId: null,
         maxMessagesPerChannel: 10,
         jsonSave: true,
         jsonBeautify: false,
         doNotBackup: [],
+        toBackup: [],
         backupMembers: false,
         saveImages: true,
         speed: 250,

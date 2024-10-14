@@ -8,12 +8,24 @@ import {
     logStatus
 } from "../utils";
 
-/* Helper function to check if a channel should be excluded */
-function shouldExcludeChannel(channel, doNotBackup) {
-    const channelExclusions = doNotBackup.find(item => typeof item === 'object' && item.channels);
-    const channelList = channelExclusions ? channelExclusions.channels : [];
-    
-    return doNotBackup.includes("channels") || channelList.includes(channel.id);
+/* Helper function to check if a channel should be excluded or included */
+function shouldExcludeChannel(channel, doNotBackup, toBackup) {
+    if (toBackup && toBackup.length > 0) {
+        const toBackupList = toBackup.flatMap(item => item.channels || []);
+
+        // If this is a category, check if any of its children are in the toBackup list
+        if (channel.type === ChannelType.GuildCategory) {
+            const childChannels = channel.children.cache.map(child => child.id);
+            const isChildInBackup = childChannels.some(childId => toBackupList.includes(childId));
+            return !isChildInBackup;
+        }
+        // For non-categories, exclude if the channel is not in the toBackup list
+        return !toBackupList.includes(channel.id);
+    } else if (doNotBackup && doNotBackup.length > 0) {
+        const doNotBackupList = doNotBackup.flatMap(item => item.channels || []);
+        return doNotBackupList.includes(channel.id);
+    }
+    return false; // By default, do not exclude any channel
 }
 
 /* returns an array with the banned members of the guild */
@@ -138,6 +150,7 @@ export async function getChannels(guild, limiter, options) {
     let savedChannels = 0;
 
     const doNotBackup = options.doNotBackup || [];
+    const toBackup = options.toBackup || [];
 
     const categories = channels
         .filter((channel) => channel.type == ChannelType.GuildCategory)
@@ -146,17 +159,20 @@ export async function getChannels(guild, limiter, options) {
 
     // Calculate the total number of channels to be processed
     totalChannels = channels.filter(
-        (channel) => channel.type !== ChannelType.GuildCategory && !shouldExcludeChannel(channel, doNotBackup)
+        (channel) => {
+            const exclude = shouldExcludeChannel(channel, doNotBackup, toBackup);
+            return channel.type !== ChannelType.GuildCategory && !exclude;
+        }
     ).size;
 
     // Process categories and their children
     for (let category of categories) {
-        if (shouldExcludeChannel(category, doNotBackup)) continue; // Skip excluded categories
+        if (shouldExcludeChannel(category, doNotBackup, toBackup)) continue; // Skip excluded categories
 
         const categoryData = { name: category.name, permissions: fetchChannelPermissions(category), children: [] };
 
         const children = category.children.cache
-            .filter((child) => !shouldExcludeChannel(child, doNotBackup)) // Skip excluded channels
+            .filter((child) => !shouldExcludeChannel(child, doNotBackup, toBackup)) // Skip excluded channels
             .sort((a, b) => a.position - b.position)
             .toJSON();
 
@@ -190,13 +206,14 @@ export async function getChannels(guild, limiter, options) {
     // Process non-categorized channels
     const others = channels
         .filter((channel) => {
+            const exclude = shouldExcludeChannel(channel, doNotBackup, toBackup);
             return (
                 !channel.parent &&
                 channel.type != ChannelType.GuildCategory &&
                 channel.type != ChannelType.AnnouncementThread &&
                 channel.type != ChannelType.PrivateThread &&
                 channel.type != ChannelType.PublicThread &&
-                !shouldExcludeChannel(channel, doNotBackup)
+                !exclude
             );
         })
         .sort((a, b) => a.position - b.position)
@@ -214,6 +231,7 @@ export async function getChannels(guild, limiter, options) {
         } else if (channel.type == ChannelType.GuildVoice) {
             channelData = fetchVoiceChannelData(channel);
         }
+
         if (channelData) {
             channelData.oldId = channel.id;
             collectedChannels.others.push(channelData);

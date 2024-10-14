@@ -23,6 +23,7 @@ export declare interface CreateOptions {
     jsonSave?: boolean;
     jsonBeautify?: boolean;
     doNotBackup?: (string | { channels: string[] })[];
+    toBackup?: (string | { channels: string[] })[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;
