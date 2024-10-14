@@ -26,6 +26,7 @@ export declare interface CreateOptions {
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;
+    concurrency?: number;
     verbose?: boolean;
     ignore2FA?: boolean;
     onStatusChange?: (status: BackupStatus) => void;
@@ -35,6 +36,7 @@ export declare interface LoadOptions {
     clearGuildBeforeRestore?: boolean;
     maxMessagesPerChannel?: number;
     speed?: number;
+    concurrency?: number;
     verbose?: boolean;
     doNotLoad?: string[];
     onStatusChange?: (status: BackupStatus) => void;

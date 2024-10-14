@@ -77,6 +77,7 @@ async function create(guild, options = {}) {
         backupMembers: false,
         saveImages: true,
         speed: 250,
+        concurrency: 45,
         verbose: false,
         ignore2FA: false,
         onStatusChange: null,
@@ -111,7 +112,13 @@ async function create(guild, options = {}) {
         id: options.backupId ?? SnowflakeUtil.generate(Date.now()),
     };
 
-    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
+    const limiter = new Bottleneck({
+        reservoir: 50, // Maximum number of requests
+        reservoirRefreshAmount: 50, // Reset reservoir back to 50
+        reservoirRefreshInterval: 1000, // Refresh every second (1000ms)
+        maxConcurrent: options.concurrency, // Allow up to `concurrency` tasks at the same time
+        minTime: options.speed // Control minimum delay between requests
+    });
 
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
@@ -184,11 +191,11 @@ async function create(guild, options = {}) {
     }
 
     if (!options || !(options.doNotBackup || []).includes("emojis")) {
-        backup.emojis = await createFunctions.getEmojis(guild, options, limiter);
+        backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
     }
 
     if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(guild, options, limiter);
+        backup.channels = await createFunctions.getChannels(guild, limiter, options);
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
@@ -208,6 +215,7 @@ async function load(backup, guild, options) {
         clearGuildBeforeRestore: true,
         maxMessagesPerChannel: 10,
         speed: 250,
+        concurrency: 45,
         doNotLoad: [],
         verbose: false,
         onStatusChange: null,
@@ -222,7 +230,13 @@ async function load(backup, guild, options) {
         throw new Error("Speed option must be a string or number");
     }
 
-    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
+    const limiter = new Bottleneck({
+        reservoir: 50, // Maximum number of requests
+        reservoirRefreshAmount: 50, // Reset reservoir back to 50
+        reservoirRefreshInterval: 1000, // Refresh every second (1000ms)
+        maxConcurrent: options.concurrency, // Allow up to `concurrency` tasks at the same time
+        minTime: options.speed // Control minimum delay between requests
+    });
 
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
@@ -269,7 +283,7 @@ async function load(backup, guild, options) {
 
     // Load channels:
     if (!options || !(options.doNotLoad || []).includes("channels")) {
-        await loadFunctions.loadChannels(guild, backupData, options, limiter);
+        await loadFunctions.loadChannels(guild, backupData, limiter, options);
     }
 
     // Load remaining configuration (AFK settings, embed channels, auto moderation, etc.):

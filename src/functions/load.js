@@ -127,7 +127,7 @@ export async function loadRoles(guild, backup, limiter, options) {
 }
 
 /* restore the guild channels */
-export async function loadChannels(guild, backup, options, limiter) {
+export async function loadChannels(guild, backup, limiter, options) {
 
     const totalChannels = backup.channels.categories.reduce((acc, category) => acc + category.children.length, 0) + backup.channels.others.length;
     let savedChannels = 0;
