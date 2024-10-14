@@ -102,7 +102,10 @@ await backup.create(guild, {
     backupMembers: false,
     saveImages: "base64",
     speed: 250,
-    ignore2FA: false
+    ignore2FA: false,
+    onStatusChange: (status) => {
+        console.log(`Saving ${status.step}... (${status.progress}) (${status.percentage})`);
+    }
 });
 ```
 
@@ -110,12 +113,60 @@ await backup.create(guild, {
 **maxMessagesPerChannel**: Maximum of messages to save in each channel. "0" won't save any messages.</br>
 **jsonSave**: Whether to save the backup into a json file. You will have to save the backup data in your own db to load it later.  
 **jsonBeautify**: Whether you want your json backup pretty formatted.</br>
-**doNotBackup**: Things you don't want to backup. Available items are: `roles`, `channels`, `emojis`, `bans`.</br>
+**doNotBackup**: Things you don't want to backup. The `doNotBackup` option can exclude specific channels. Available items are: `roles`, `channels`, `emojis`, `bans`.</br>
+  - **Exclude specific channels**:
+    ```js
+    doNotBackup: ["roles", { channels: ["channel_id_1", "channel_id_2"] }, "emojis", "bans"]
+    ```
+  - **Exclude a single channel**:
+    ```js
+    doNotBackup: ["roles", { channels: ["channel_id_1"] }, "emojis", "bans"]
+    ```
+  - **Exclude all channels**:
+    ```js
+    doNotBackup: ["roles", "channels", "emojis", "bans"]
+    ```  
 **backupMembers**: Wether or not to save information on the members of the server.</br>
 **saveImages**: How to save images like guild icon and emojis. Set to "url" by default, restoration may not work if the old server is deleted. So, `url` is recommended if you want to clone a server (or if you need very light backups), and `base64` if you want to backup a server. Save images as base64 creates heavier backups.</br>
 **speed**: What speed to run at, default is 250 (measured in ms)</br>
 **verbose**: Derermines if the output should be verbose or not.</br>
 **ignore2FA**: Disables attempting to grab items that require 2FA</br>
+**onStatusChange**: A callback function to handle the status updates during the backup process.</br>
+The status object contains three properties:</br>
+- **step**: The current step (e.g., "Channels").
+- **progress**: Progress for that step (e.g., "1/100").
+- **percentage**: Percentage completion (e.g., "1%").
+- **info**: A detailed description or update of what is happening in the current step (e.g., "Backed up Channel: ⚡︱weather-api (Category: ☁︱weather)"). This can provide real-time context about which item or action is being processed in the backup.
+
+You can use the onStatusChange callback to display status messages in Discord, for example:
+```js
+onStatusChange: async (status) => {
+  // Create an embed for the status update
+  const statusEmbed = new EmbedBuilder()
+    .setColor("#0099ff")
+    .setTitle(`Backup Progress: ${status.step}`)
+    .setDescription(`Status update for backup in progress.`)
+    .addFields(
+      { name: "Step", value: status.step, inline: true },
+      { name: "Progress", value: status.progress, inline: true },
+      { name: "Percentage", value: status.percentage, inline: true },
+      { name: "Info", value: status.info || "N/A" }
+    )
+    .setTimestamp()
+    .setFooter({ text: "Backup Status", iconURL: guild.iconURL() });
+
+  // Send the embed to the channel
+  await interaction.channel.send({ embeds: [statusEmbed] });
+  console.log(
+    `[Backing up] Step: ${status.step} | Progress: ${
+      status.progress
+    } | Percentage: ${status.percentage} | Info: ${
+      status.info || "N/A"
+    }`
+  );
+},
+```
+This allows you to send real-time updates as the backup progresses.
 
 #### Requires 2FA
 - Auto Moderation Rules
@@ -132,7 +183,13 @@ await backup.load(backupData, guild, {
     clearGuildBeforeRestore: true,
     maxMessagesPerChannel: 10,
     speed: 250,
-    doNotLoad: ["roleAssignments", "emojis"]
+    doNotLoad: ["roleAssignments", "emojis"],
+    onStatusChange: (status) => {
+        console.log(
+          `[Restoring] Step: ${status.step} | Progress: ${
+            status.progress
+          } | Percentage: ${status.percentage} | Info: ${status.info || "N/A"}`
+        );
 });
 ```
 
@@ -140,7 +197,8 @@ await backup.load(backupData, guild, {
 **maxMessagesPerChannel**: Maximum of messages to restore in each channel. "0" won't restore any messages.</br>
 **speed**: What speed to run at, default is 250 (measured in ms)</br>
 **verbose**: Determines if the output should be verbose or not.</br>
-**doNotLoad**: Things you dont want to restore. Available items are: `main`, `roleAssignments`, `emojis`. `main` will prevent loading the main backup, `roleAssignments` will prevent reassigning roles to members, and `emojis` will prevent restoring emojis.
+**doNotLoad**: Things you dont want to restore. Available items are: `main`, `roleAssignments`, `emojis`, `roles`, & `channels`. `main` will prevent loading the main backup, `roleAssignments` will prevent reassigning roles to members, `emojis` will prevent restoring emojis, `roles` will prevent restoring roles and `channels` will prevent restoring channels.</br>
+**onStatusChange**: A callback function to handle the status updates during the restoration process. Similar to backup, it provides the `step`, `progress`, `percentage`, and `info`.</br>
 
 ---
 

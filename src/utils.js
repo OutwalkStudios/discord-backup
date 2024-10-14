@@ -17,6 +17,24 @@ const MAX_BITRATE_PER_TIER = {
     [GuildPremiumTier.Tier3]: 384000
 };
 
+/**
+ * Updates the status after each major step in the backup process.
+ * Triggers an optionally user-defined callback for custom handling.
+ */
+export async function logStatus(step, currentStep, totalSteps, options, info = "") {
+    const percentage = ((currentStep / totalSteps) * 100).toFixed(2) + "%";
+    const status = {
+        step: step,
+        progress: `${currentStep}/${totalSteps}`,
+        percentage: percentage,
+        info: info
+    };
+
+    if (options.onStatusChange) {
+        await options.onStatusChange(status);
+    }
+}
+
 /* gets the permissions for a channel */
 export function fetchChannelPermissions(channel) {
     const permissions = [];

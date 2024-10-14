@@ -17,7 +17,7 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 function check2FA(options, guild, permission) {
     /* skip further processing when 2FA is not required */
     if (guild.mfaLevel == GuildMFALevel.None) return true;
-
+    
     /* log a warning when an action requires 2FA but 2FA has not been setup on the bot owner */
     if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
         console.log(`[WARNING] - 2FA is required by this server in order to backup ${permission}`);
@@ -37,7 +37,7 @@ async function getBackupData(backupId) {
         if (file) {
             const backupData = JSON.parse(
                 fs.readFileSync(`${backups}${path.sep}${file}`)
-            );
+            );            
             resolve(backupData);
         } else {
             reject("No backup found");
@@ -63,6 +63,7 @@ async function fetch(backupId) {
 
 /* creates a new backup and saves it to the storage */
 async function create(guild, options = {}) {
+
     const intents = new IntentsBitField(guild.client.options.intents);
     if (!intents.has(GatewayIntentBits.Guilds))
         throw new Error("GUILDS intent is required");
@@ -78,6 +79,7 @@ async function create(guild, options = {}) {
         speed: 250,
         verbose: false,
         ignore2FA: false,
+        onStatusChange: null,
         ...options,
     };
 
@@ -123,21 +125,21 @@ async function create(guild, options = {}) {
     }
 
     limiter.on("error", async (error) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`ERROR: ${error.message}`);
     });
 
     limiter.on("failed", (error, jobInfo) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
     if (check2FA(options, guild, "auto moderation rules")) {
-        backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter);
+        backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter, options);
     }
 
     if (guild.iconURL()) {
@@ -168,17 +170,17 @@ async function create(guild, options = {}) {
     }
 
     if (options && options.backupMembers) {
-        backup.members = await createFunctions.getMembers(guild, limiter);
+        backup.members = await createFunctions.getMembers(guild, limiter, options);
     }
 
     if (!options || !(options.doNotBackup || []).includes("bans")) {
         if (check2FA(options, guild, "bans")) {
-            backup.bans = await createFunctions.getBans(guild, limiter);
+            backup.bans = await createFunctions.getBans(guild, limiter, options);
         }
     }
 
     if (!options || !(options.doNotBackup || []).includes("roles")) {
-        backup.roles = await createFunctions.getRoles(guild, limiter);
+        backup.roles = await createFunctions.getRoles(guild, limiter, options);
     }
 
     if (!options || !(options.doNotBackup || []).includes("emojis")) {
@@ -190,7 +192,7 @@ async function create(guild, options = {}) {
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
-        const reviver = (key, value) => typeof value == "bigint" ? value.toString() : value;
+        const reviver = (key, value) => typeof value === "bigint" ? value.toString() : value;
         const backupJSON = options.jsonBeautify ? JSON.stringify(backup, reviver, 4) : JSON.stringify(backup, reviver);
         fs.writeFileSync(`${backups}${path.sep}${backup.id}.json`, backupJSON, "utf-8");
     }
@@ -208,6 +210,7 @@ async function load(backup, guild, options) {
         speed: 250,
         doNotLoad: [],
         verbose: false,
+        onStatusChange: null,
         ...options,
     };
 
@@ -233,14 +236,14 @@ async function load(backup, guild, options) {
     }
 
     limiter.on("error", async (error) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`ERROR: ${error.message}`);
     });
 
     limiter.on("failed", (error, jobInfo) => {
-        /* ignore errors where it request entity is too large */
+        /* ignore errors where the request entity is too large */
         if (error.message == "Request entity too large") return;
 
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
@@ -252,35 +255,41 @@ async function load(backup, guild, options) {
             await clearGuild(guild, limiter);
         }
 
-        // Load base config:
+
         await Promise.all([
-            loadFunctions.loadConfig(guild, backupData, limiter),
-            loadFunctions.loadBans(guild, backupData, limiter),
+            loadFunctions.loadConfig(guild, backupData, limiter, options),
+            loadFunctions.loadBans(guild, backupData, limiter, options),
         ]);
+    }
 
-        // Load roles:
-        await loadFunctions.loadRoles(guild, backupData, limiter);
+    // Load roles:
+    if (!options || !(options.doNotLoad || []).includes("roles")) {
+        await loadFunctions.loadRoles(guild, backupData, limiter, options);
+    }
 
-        // Load channels:
+    // Load channels:
+    if (!options || !(options.doNotLoad || []).includes("channels")) {
         await loadFunctions.loadChannels(guild, backupData, options, limiter);
+    }
 
-        // Load config, which requires channels:
+    // Load remaining configuration (AFK settings, embed channels, auto moderation, etc.):
+    if (!options || !(options.doNotLoad || []).includes("main")) {
         await Promise.all([
-            loadFunctions.loadAFk(guild, backupData, limiter),
-            loadFunctions.loadEmbedChannel(guild, backupData, limiter),
-            loadFunctions.loadAutoModRules(guild, backupData, limiter),
-            loadFunctions.loadFinalSettings(guild, backupData, limiter),
+            loadFunctions.loadAFk(guild, backupData, limiter, options),
+            loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+            loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+            loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
         ]);
+    }
 
-        // Assign roles:
-        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
-            await loadFunctions.assignRolesToMembers(guild, backupData, limiter);
-        }
+    // Assign roles:
+    if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
+        await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
     }
 
     // Restore Emojis:
     if (!options || !(options.doNotLoad || []).includes("emojis")) {
-        await loadFunctions.loadEmojis(guild, backupData, limiter);
+        await loadFunctions.loadEmojis(guild, backupData, limiter, options);
     }
 
     return backupData;

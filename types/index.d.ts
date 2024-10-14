@@ -22,12 +22,13 @@ export declare interface CreateOptions {
     maxMessagesPerChannel?: number;
     jsonSave?: boolean;
     jsonBeautify?: boolean;
-    doNotBackup?: string[];
+    doNotBackup?: (string | { channels: string[] })[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;
     verbose?: boolean;
     ignore2FA?: boolean;
+    onStatusChange?: (status: BackupStatus) => void;
 }
 
 export declare interface LoadOptions {
@@ -36,6 +37,7 @@ export declare interface LoadOptions {
     speed?: number;
     verbose?: boolean;
     doNotLoad?: string[];
+    onStatusChange?: (status: BackupStatus) => void;
 }
 
 export declare interface SystemChannelData {
