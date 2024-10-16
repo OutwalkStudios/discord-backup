@@ -182,26 +182,54 @@ async function create(guild, options = {}) {
         backup.bannerURL = guild.bannerURL();
     }
 
-    if (options && options.backupMembers) {
-        backup.members = await createFunctions.getMembers(guild, limiter, options);
-    }
+    if (options.toBackup.length > 0) {
+        // Use toBackup to backup specific items.
+        const toBackupList = options.toBackup;
 
-    if (!options || !(options.doNotBackup || []).includes("bans")) {
-        if (check2FA(options, guild, "bans")) {
-            backup.bans = await createFunctions.getBans(guild, limiter, options);
+        if (toBackupList.includes("bans")) {
+            if (check2FA(options, guild, "bans")) {
+                backup.bans = await createFunctions.getBans(guild, limiter, options);
+            }
         }
-    }
 
-    if (!options || !(options.doNotBackup || []).includes("roles")) {
-        backup.roles = await createFunctions.getRoles(guild, limiter, options);
-    }
+        if (toBackupList.includes("roles")) {
+            backup.roles = await createFunctions.getRoles(guild, limiter, options);
+        }  
 
-    if (!options || !(options.doNotBackup || []).includes("emojis")) {
-        backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
-    }
+        if (toBackupList.includes("emojis")) {
+            backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        }
 
-    if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        if (toBackupList && toBackupList.length > 0) {
+            backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        }
+
+        if (options && options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
+    } else {
+        // Use doNotBackup to exclude backup of specific items.
+        if (!options || !(options.doNotBackup || []).includes("bans")) {
+            if (check2FA(options, guild, "bans")) {
+                backup.bans = await createFunctions.getBans(guild, limiter, options);
+            }
+        }
+
+        if (!options || !(options.doNotBackup || []).includes("roles")) {
+            backup.roles = await createFunctions.getRoles(guild, limiter, options);
+        }
+
+        if (!options || !(options.doNotBackup || []).includes("emojis")) {
+            backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        }
+
+        if (!options || !(options.doNotBackup || []).includes("channels")) {
+            backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        }
+
+        if (options && options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
@@ -217,12 +245,18 @@ async function create(guild, options = {}) {
 async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
+    // Ensure `toLoad` and `doNotLoad` are not used together
+    if (options.toLoad && options.doNotLoad) {
+        throw new Error("You cannot use both 'toLoad' and 'doNotLoad' options at the same time.");
+    }
+
     options = {
         clearGuildBeforeRestore: true,
         maxMessagesPerChannel: 10,
         speed: 250,
         concurrency: 45,
         doNotLoad: [],
+        toLoad: [],
         verbose: false,
         onStatusChange: null,
         ...options,
@@ -269,47 +303,83 @@ async function load(backup, guild, options) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
-    // Main part of the backup restoration:
-    if (!options || !(options.doNotLoad || []).includes("main")) {
-        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-            await clearGuild(guild, limiter);
+    if (options.toLoad.length > 0) {
+        // Use toLoad to load specific items.
+        const toLoadList = options.toLoad;
+
+        if (toLoadList.includes("main")) {
+            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+                await clearGuild(guild, limiter);
+            }
+
+            await Promise.all([
+                loadFunctions.loadConfig(guild, backupData, limiter, options),
+                loadFunctions.loadBans(guild, backupData, limiter, options),
+            ]);
         }
 
+        if (toLoadList.includes("roles")) {
+            await loadFunctions.loadRoles(guild, backupData, limiter, options);
+        }
 
-        await Promise.all([
-            loadFunctions.loadConfig(guild, backupData, limiter, options),
-            loadFunctions.loadBans(guild, backupData, limiter, options),
-        ]);
-    }
+        if (toLoadList && toLoadList.length > 0) {
+            await loadFunctions.loadChannels(guild, backupData, limiter, options);
+        }
 
-    // Load roles:
-    if (!options || !(options.doNotLoad || []).includes("roles")) {
-        await loadFunctions.loadRoles(guild, backupData, limiter, options);
-    }
+        if (toLoadList.includes("main")) {
+            await Promise.all([
+                loadFunctions.loadAFk(guild, backupData, limiter, options),
+                loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+                loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+                loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
+            ]);
+        }
 
-    // Load channels:
-    if (!options || !(options.doNotLoad || []).includes("channels")) {
-        await loadFunctions.loadChannels(guild, backupData, limiter, options);
-    }
+        if (toLoadList.includes("roleAssignments")) {
+            await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
+        }
 
-    // Load remaining configuration (AFK settings, embed channels, auto moderation, etc.):
-    if (!options || !(options.doNotLoad || []).includes("main")) {
-        await Promise.all([
-            loadFunctions.loadAFk(guild, backupData, limiter, options),
-            loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
-            loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
-            loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
-        ]);
-    }
+        if (toLoadList.includes("emojis")) {
+            await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+        }
+    } else {
+        // Use doNotLoad to exclude load of specific items.
+        if (!options || !(options.doNotLoad || []).includes("main")) {
+            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+                await clearGuild(guild, limiter);
+            }
 
-    // Assign roles:
-    if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
-        await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
-    }
 
-    // Restore Emojis:
-    if (!options || !(options.doNotLoad || []).includes("emojis")) {
-        await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+            await Promise.all([
+                loadFunctions.loadConfig(guild, backupData, limiter, options),
+                loadFunctions.loadBans(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("roles")) {
+            await loadFunctions.loadRoles(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("channels")) {
+            await loadFunctions.loadChannels(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("main")) {
+            await Promise.all([
+                loadFunctions.loadAFk(guild, backupData, limiter, options),
+                loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+                loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+                loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
+            await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("emojis")) {
+            await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+        }
     }
 
     return backupData;

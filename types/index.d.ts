@@ -39,7 +39,8 @@ export declare interface LoadOptions {
     speed?: number;
     concurrency?: number;
     verbose?: boolean;
-    doNotLoad?: string[];
+    doNotLoad?: (string | { channels: string[] })[];
+    toLoad?: (string | { channels: string[] })[];
     onStatusChange?: (status: BackupStatus) => void;
 }
 

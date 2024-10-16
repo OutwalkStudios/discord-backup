@@ -113,19 +113,28 @@ await backup.create(guild, {
 **maxMessagesPerChannel**: Maximum of messages to save in each channel. "0" won't save any messages.</br>
 **jsonSave**: Whether to save the backup into a json file. You will have to save the backup data in your own db to load it later.  
 **jsonBeautify**: Whether you want your json backup pretty formatted.</br>
-**doNotBackup**: Things you don't want to backup. The `doNotBackup` option can exclude specific channels. Available items are: `roles`, `channels`, `emojis`, `bans`.</br>
+**doNotBackup**: Items you want to exclude from the backup. Available options are `bans`, `roles`, `emojis`, and `channels`. You can specify all channels or a subset:
   - **Exclude specific channels**:
     ```js
-    doNotBackup: ["roles", { channels: ["channel_id_1", "channel_id_2"] }, "emojis", "bans"]
-    ```
-  - **Exclude a single channel**:
-    ```js
-    doNotBackup: ["roles", { channels: ["channel_id_1"] }, "emojis", "bans"]
+    doNotBackup: [{ channels: ["channel_id_1", "channel_id_2"] }]
     ```
   - **Exclude all channels**:
     ```js
-    doNotBackup: ["roles", "channels", "emojis", "bans"]
-    ```  
+    doNotBackup: ["channels"]
+    ```
+**toBackup**: Items you want to include in the backup. Available options are `bans`, `roles`, `emojis`, and `channels`. You can specify all channels or a subset:
+  - **Include specific channels**:
+    ```js
+    toBackup: [
+        {
+            channels: ["channel_id_3", "channel_id_4"]
+        }
+    ]
+    ```
+  - **Include all channels**:
+    ```js
+    toBackup: ["channels"]
+    ```
 **backupMembers**: Wether or not to save information on the members of the server.</br>
 **saveImages**: How to save images like guild icon and emojis. Set to "url" by default, restoration may not work if the old server is deleted. So, `url` is recommended if you want to clone a server (or if you need very light backups), and `base64` if you want to backup a server. Save images as base64 creates heavier backups.</br>
 **speed**: What speed to run at, default is 250 (measured in ms)</br>

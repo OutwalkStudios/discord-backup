@@ -10,23 +10,34 @@ import {
 
 /* Helper function to check if a channel should be excluded or included */
 function shouldExcludeChannel(channel, doNotBackup, toBackup) {
+    // If "channels" is included in `toBackup`, include all channels.
+    if (toBackup && toBackup.some(item => item === "channels")) {
+        return false;
+    }
+
+    // If specific channels are mentioned in `toBackup`, exclude those not listed.
     if (toBackup && toBackup.length > 0) {
         const toBackupList = toBackup.flatMap(item => item.channels || []);
-
-        // If this is a category, check if any of its children are in the toBackup list
+        // For categories, include if any child is in the `toBackup` list.
         if (channel.type === ChannelType.GuildCategory) {
             const childChannels = channel.children.cache.map(child => child.id);
             const isChildInBackup = childChannels.some(childId => toBackupList.includes(childId));
             return !isChildInBackup;
         }
-        // For non-categories, exclude if the channel is not in the toBackup list
+        // For other channels, exclude if not in the `toBackup` list.
         return !toBackupList.includes(channel.id);
-    } else if (doNotBackup && doNotBackup.length > 0) {
+    }
+
+    // Handle `doNotBackup` as a fallback.
+    if (doNotBackup && doNotBackup.length > 0) {
         const doNotBackupList = doNotBackup.flatMap(item => item.channels || []);
         return doNotBackupList.includes(channel.id);
     }
-    return false; // By default, do not exclude any channel
+
+    // By default, do not exclude any channels.
+    return false;
 }
+
 
 /* returns an array with the banned members of the guild */
 export async function getBans(guild, limiter, options) {
@@ -143,7 +154,6 @@ export async function getEmojis(guild, limiter, options) {
 
 /* returns an array with the channels of the guild */
 export async function getChannels(guild, limiter, options) {
-
     const channels = await limiter.schedule({ id: "getChannels::guild.channels.fetch" }, () => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
     let totalChannels = 0;
@@ -167,21 +177,19 @@ export async function getChannels(guild, limiter, options) {
 
     // Process categories and their children
     for (let category of categories) {
-        if (shouldExcludeChannel(category, doNotBackup, toBackup)) continue; // Skip excluded categories
+        if (shouldExcludeChannel(category, doNotBackup, toBackup)) continue;
 
         const categoryData = { name: category.name, permissions: fetchChannelPermissions(category), children: [] };
 
         const children = category.children.cache
-            .filter((child) => !shouldExcludeChannel(child, doNotBackup, toBackup)) // Skip excluded channels
+            .filter((child) => !shouldExcludeChannel(child, doNotBackup, toBackup))
             .sort((a, b) => a.position - b.position)
             .toJSON();
 
         for (let child of children) {
             let channelData;
+            const info = `Backed up Channel: ${child.name} (Category: ${category.name})`;
 
-            const info = `Backed up Channel: ${child.name} (Category: ${category.name})`
-
-            // Handle text-based channels (which may have threads)
             if (child.type === ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
                 channelData = await fetchTextChannelData(child, options, limiter);
             } else if (child.type == ChannelType.GuildVoice) {
@@ -221,11 +229,8 @@ export async function getChannels(guild, limiter, options) {
 
     for (let channel of others) {
         let channelData;
+        const info = `Backed up Channel: ${channel.name}`;
 
-        // Log the channel being backed up
-        const info = `Backed up Channel: ${channel.name}`
-
-        // Handle text-based channels (which may have threads)
         if (channel.type === ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
             channelData = await fetchTextChannelData(channel, options, limiter);
         } else if (channel.type == ChannelType.GuildVoice) {
