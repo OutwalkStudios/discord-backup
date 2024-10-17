@@ -200,14 +200,18 @@ async function create(guild, options = {}) {
             backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
         }
 
-        if (toBackupList && toBackupList.length > 0) {
+        if (toBackupList.includes("channels")) {
             backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        }  
+
+        if (toBackupList && toBackupList.length > 0 && !toBackupList.includes("channels")) {
+            backup.channels = await createFunctions.toBackupgetChannels(guild, limiter, options);
         }
 
         if (options && options.backupMembers) {
             backup.members = await createFunctions.getMembers(guild, limiter, options);
         }
-    } else {
+    } else if (options.doNotBackup.length > 0) {
         // Use doNotBackup to exclude backup of specific items.
         if (!options || !(options.doNotBackup || []).includes("bans")) {
             if (check2FA(options, guild, "bans")) {
@@ -224,7 +228,7 @@ async function create(guild, options = {}) {
         }
 
         if (!options || !(options.doNotBackup || []).includes("channels")) {
-            backup.channels = await createFunctions.getChannels(guild, limiter, options);
+            backup.channels = await createFunctions.doNotBackupgetChannels(guild, limiter, options);
         }
 
         if (options && options.backupMembers) {
@@ -323,7 +327,7 @@ async function load(backup, guild, options) {
         }
 
         if (toLoadList && toLoadList.length > 0) {
-            await loadFunctions.loadChannels(guild, backupData, limiter, options);
+            await loadFunctions.toLoadloadChannels(guild, backupData, limiter, options);
         }
 
         if (toLoadList.includes("main")) {
@@ -342,7 +346,7 @@ async function load(backup, guild, options) {
         if (toLoadList.includes("emojis")) {
             await loadFunctions.loadEmojis(guild, backupData, limiter, options);
         }
-    } else {
+    } else if (options.doNotLoad.length > 0) {
         // Use doNotLoad to exclude load of specific items.
         if (!options || !(options.doNotLoad || []).includes("main")) {
             if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
@@ -361,7 +365,7 @@ async function load(backup, guild, options) {
         }
 
         if (!options || !(options.doNotLoad || []).includes("channels")) {
-            await loadFunctions.loadChannels(guild, backupData, limiter, options);
+            await loadFunctions.doNotLoadloadChannels(guild, backupData, limiter, options);
         }
 
         if (!options || !(options.doNotLoad || []).includes("main")) {
