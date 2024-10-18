@@ -14,7 +14,6 @@ function shouldExcludeChannel(channel, doNotBackupList) {
 
     // If the channel is explicitly listed in the `doNotBackupList`, exclude it.
     if (doNotBackupList.includes(channelId)) {
-        console.log(`[DEBUG] Channel/Category ${channel.name} (${channelId}) is explicitly excluded by doNotBackup list.`);
         return true;
     }
 
@@ -24,14 +23,12 @@ function shouldExcludeChannel(channel, doNotBackupList) {
 
         // Exclude the entire category if its ID is in the `doNotBackupList`.
         if (doNotBackupList.includes(channelId)) {
-            console.log(`[DEBUG] Excluding entire Category ${channel.name} (${channelId}) as it's in the doNotBackup list.`);
             return true;
         }
 
         // Exclude the category if all of its children are listed in the `doNotBackupList`.
         const isChildInDoNotBackup = childChannels.every(childId => doNotBackupList.includes(childId));
         if (isChildInDoNotBackup) {
-            console.log(`[DEBUG] Excluding Category ${channel.name} (${channelId}) because all of its children are in the doNotBackup list.`);
             return true;
         }
     }
@@ -45,7 +42,6 @@ function shouldIncludeChannel(channel, toBackupList) {
 
     // Include if the channel or category is explicitly in the `toBackup` list.
     if (toBackupList.includes(channelId)) {
-        console.log(`[DEBUG] Channel/Category ${channel.name} (${channelId}) is explicitly included in toBackup list.`);
         return true;
     }
 
@@ -54,14 +50,12 @@ function shouldIncludeChannel(channel, toBackupList) {
         const childChannels = channel.children.cache.map(child => child.id);
         const isChildInToBackup = childChannels.some(childId => toBackupList.includes(childId));
         if (isChildInToBackup) {
-            console.log(`[DEBUG] Including Category ${channel.name} (${channelId}) because one of its children is in the toBackup list.`);
             return true;
         }
     }
 
     // For individual channels, include their parent category if they are explicitly listed.
     if (channel.parent && toBackupList.includes(channelId)) {
-        console.log(`[DEBUG] Including parent category ${channel.parent.name} (${channel.parent.id}) for the channel ${channel.name} (${channelId}).`);
         return true;
     }
 
@@ -276,15 +270,12 @@ export async function doNotBackupgetChannels(guild, limiter, options) {
         .sort((a, b) => a.position - b.position)
         .toJSON();
 
-    console.log(`[DEBUG] Starting process to exclude channels. Total categories: ${categories.length}.`);
-
     // Calculate the total number of channels to be backed up before the backup starts
     let totalChannels = 0;
 
     // Process categories and their children first
     for (let category of categories) {
         if (shouldExcludeChannel(category, doNotBackupList)) {
-            console.log(`[DEBUG] Skipping Category: ${category.name} (${category.id}) as it is excluded.`);
             continue;
         }
 
@@ -296,8 +287,6 @@ export async function doNotBackupgetChannels(guild, limiter, options) {
         // Only count the category if it has non-excluded children
         if (nonExcludedChildren.length > 0) {
             totalChannels += nonExcludedChildren.length;
-        } else {
-            console.log(`[DEBUG] Skipping Category: ${category.name} as all its children are excluded.`);
         }
     }
 
@@ -315,8 +304,6 @@ export async function doNotBackupgetChannels(guild, limiter, options) {
         .toJSON();
 
     totalChannels += others.length;
-
-    console.log(`[DEBUG] Total channels to be backed up: ${totalChannels}.`);
 
     // Backup logic for categories
     for (let category of categories) {
@@ -354,7 +341,6 @@ export async function doNotBackupgetChannels(guild, limiter, options) {
                 categoryData.children.push(channelData);
                 savedChannels++;  // Increment only when a channel is backed up
                 await logStatus("Channels", savedChannels, totalChannels, options, info);
-                console.log(`[DEBUG] Backed up Channel: ${child.name} (${child.id}) in Category: ${category.name}.`);
             }
         }
 
@@ -380,11 +366,8 @@ export async function doNotBackupgetChannels(guild, limiter, options) {
             collectedChannels.others.push(channelData);
             savedChannels++;  // Increment only when a channel is backed up
             await logStatus("Channels", savedChannels, totalChannels, options, info);
-            console.log(`[DEBUG] Backed up Non-Categorized Channel: ${channel.name} (${channel.id}).`);
         }
     }
-
-    console.log(`[DEBUG] Finished backing up channels. Total saved: ${savedChannels}/${totalChannels}.`);
 
     return collectedChannels;
 }
@@ -404,14 +387,11 @@ export async function toBackupgetChannels(guild, limiter, options) {
         .sort((a, b) => a.position - b.position)
         .toJSON();
 
-    console.log(`[DEBUG] Starting backup process for channels. Total categories: ${categories.length}.`);
-
     // Calculate total channels before backup starts
     for (let category of categories) {
         const includeCategory = shouldIncludeChannel(category, toBackupList);
 
         if (!includeCategory) {
-            console.log(`[DEBUG] Skipping Category: ${category.name} (${category.id}) as it is not in the toBackup list.`);
             continue;
         }
 
@@ -436,26 +416,20 @@ export async function toBackupgetChannels(guild, limiter, options) {
         .toJSON();
 
     totalChannels += nonCategorizedChannels.length;
-    console.log(`[DEBUG] Total channels to be backed up: ${totalChannels}.`);
 
     // Process categories and their children
     for (let category of categories) {
         const includeCategory = shouldIncludeChannel(category, toBackupList);
 
         if (!includeCategory) {
-            console.log(`[DEBUG] Skipping Category: ${category.name} (${category.id}) as it is not in the toBackup list.`);
             continue;
         }
-
-        console.log(`[DEBUG] Processing Category: ${category.name} (${category.id}).`);
 
         // Include only specified child channels or include all if the category itself is listed.
         const includedChildren = category.children.cache
             .filter((child) => shouldIncludeChannel(child, toBackupList) || toBackupList.includes(category.id))
             .sort((a, b) => a.position - b.position)
             .toJSON();
-
-        console.log(`[DEBUG] Creating Category: ${category.name} with ${includedChildren.length} included children.`);
 
         const categoryData = {
             name: category.name,
@@ -482,7 +456,6 @@ export async function toBackupgetChannels(guild, limiter, options) {
                 categoryData.children.push(channelData);
                 savedChannels++;
                 await logStatus("Channels", savedChannels, totalChannels, options, info);
-                console.log(`[DEBUG] Backed up Channel: ${child.name} (${child.id}) in Category: ${category.name}.`);
             }
         }
 
@@ -493,7 +466,6 @@ export async function toBackupgetChannels(guild, limiter, options) {
     }
 
     // Process non-categorized channels
-    console.log(`[DEBUG] Processing ${nonCategorizedChannels.length} non-categorized channels.`);
     for (let channel of nonCategorizedChannels) {
         let channelData;
         const info = `Backed up Channel: ${channel.name}`;
@@ -509,11 +481,8 @@ export async function toBackupgetChannels(guild, limiter, options) {
             collectedChannels.others.push(channelData);
             savedChannels++;
             await logStatus("Channels", savedChannels, totalChannels, options, info);
-            console.log(`[DEBUG] Backed up Non-Categorized Channel: ${channel.name} (${channel.id}).`);
         }
     }
-
-    console.log(`[DEBUG] Finished backing up channels. Total saved: ${savedChannels}/${totalChannels}.`);
 
     return collectedChannels;
 }

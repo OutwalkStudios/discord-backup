@@ -179,19 +179,15 @@ export async function doNotLoadloadChannels(guild, backup, limiter, options) {
 
     // Restore categories and their child channels
     for (let category of backup.channels.categories) {
-        console.log(`[DEBUG] Processing Category: ${category.name} (${category.oldId || category.id})`);
 
         const nonExcludedChildren = category.children.filter(child => !shouldExcludeChannel(child, doNotLoad));
 
         // Skip creating the category if all of its children are excluded
         if (shouldExcludeCategory(category, doNotLoadList) || nonExcludedChildren.length === 0) {
-            console.log(`[DEBUG] Skipping Category: ${category.name} as all its children are excluded or it matches an excluded parent_id.`);
             continue;
         }
 
-        console.log(`[DEBUG] Creating Category: ${category.name}`);
         const createdCategory = await loadCategory(category, guild, limiter);
-        console.log(`[DEBUG] Created Category: ${createdCategory.name} (${createdCategory.id})`);
 
         for (let channel of nonExcludedChildren) {
             try {
@@ -201,7 +197,6 @@ export async function doNotLoadloadChannels(guild, backup, limiter, options) {
                     backup.channelMap[channel.oldId || channel.id] = createdChannel;
                     savedChannels++;
                     await logStatus("Channels", savedChannels, totalChannels, options, info);
-                    console.log(`[DEBUG] Restored Channel: ${createdChannel.name} (${createdChannel.id})`);
                 }
             } catch (error) {
                 console.error(`[ERROR] Error restoring channel ${channel.name}: ${error.message}`);
@@ -212,7 +207,6 @@ export async function doNotLoadloadChannels(guild, backup, limiter, options) {
     // Restore non-categorized channels
     for (let channel of backup.channels.others) {
         if (shouldExcludeChannel(channel, doNotLoad)) {
-            console.log(`[DEBUG] Skipping Non-Categorized Channel: ${channel.name} (${channel.oldId || channel.id})`);
             continue;
         }
 
@@ -223,14 +217,11 @@ export async function doNotLoadloadChannels(guild, backup, limiter, options) {
                 backup.channelMap[channel.oldId || channel.id] = createdChannel;
                 savedChannels++;
                 await logStatus("Channels", savedChannels, totalChannels, options, info);
-                console.log(`[DEBUG] Restored Non-Categorized Channel: ${createdChannel.name} (${createdChannel.id})`);
             }
         } catch (error) {
             console.error(`[ERROR] Error restoring non-categorized channel ${channel.name}: ${error.message}`);
         }
     }
-
-    console.log(`[loadChannels] Channels restored: ${savedChannels}/${totalChannels}`);
 
     // Ensure progress doesn't exceed the total number of channels
     if (savedChannels > totalChannels) {
@@ -244,17 +235,12 @@ export async function doNotLoadloadChannels(guild, backup, limiter, options) {
 export async function toLoadloadChannels(guild, backup, limiter, options) {
     const toLoad = options.toLoad || [];
     const specifiedChannels = toLoad.flatMap(item => item.channels || []);
-    
-    console.log("[loadChannels] Starting to load channels...");
-    console.log("[loadChannels] Options provided:", options);
-    console.log("[loadChannels] Specified channels to load:", specifiedChannels);
 
     let savedChannels = 0;
 
     // Helper function to check if a channel should be loaded
     function shouldLoadChannel(channelId) {
         const result = toLoad.includes("channels") || specifiedChannels.includes(channelId);
-        console.log(`[loadChannels] shouldLoadChannel(${channelId}) -> ${result}`);
         return result;
     }
 
@@ -264,7 +250,6 @@ export async function toLoadloadChannels(guild, backup, limiter, options) {
             category.name === categoryName &&
             (category.children.some(child => specifiedChannels.includes(child.parent_id)) || specifiedChannels.includes(category.name))
         );
-        console.log(`[loadChannels] shouldLoadCategory(${categoryName}) -> ${result}`);
         return result;
     }
 
@@ -277,34 +262,26 @@ export async function toLoadloadChannels(guild, backup, limiter, options) {
         return count;
     }, 0) + backup.channels.others.filter(channel => shouldLoadChannel(channel.oldId)).length;
 
-    console.log("[loadChannels] Total channels to restore:", totalChannels);
-
     // Restore categories and their child channels
     for (let category of backup.channels.categories) {
-        console.log(`[loadChannels] Processing category: ${category.name}`);
 
         // Check if the category should be loaded based on its children or if it itself is specified.
         const relevantChildren = category.children.filter(child => shouldLoadChannel(child.oldId) || specifiedChannels.includes(child.parent_id));
-        console.log(`[loadChannels] Relevant children for category ${category.name}:`, relevantChildren.map(c => c.name));
 
         if (!shouldLoadCategory(category.name) && relevantChildren.length === 0) {
-            console.log(`[loadChannels] Skipping category ${category.name} as it has no relevant children and is not specified for restore.`);
             continue;
         }
 
-        console.log(`[loadChannels] Creating category: ${category.name}`);
         const createdCategory = await loadCategory(category, guild, limiter);
 
         for (let channel of category.children) {
             try {
                 // Check if this channel should be loaded based on the `parent_id` or if it's directly specified.
                 if (!shouldLoadChannel(channel.oldId) && !relevantChildren.includes(channel)) {
-                    console.log(`[loadChannels] Skipping child channel ${channel.name} under category ${category.name}`);
                     continue;
                 }
 
                 const info = `Restored Channel: ${channel.name} (Category: ${category.name})`;
-                console.log(`[loadChannels] Restoring channel: ${channel.name} in category: ${category.name}`);
                 const createdChannel = await loadChannel(channel, guild, createdCategory, options, limiter);
                 if (createdChannel) {
                     backup.channelMap[channel.oldId] = createdChannel;
@@ -320,16 +297,13 @@ export async function toLoadloadChannels(guild, backup, limiter, options) {
     // Restore non-categorized channels (channels without a parent)
     for (let channel of backup.channels.others) {
         try {
-            console.log(`[loadChannels] Processing non-categorized channel: ${channel.name} (ID: ${channel.oldId})`);
 
             // Check if this channel should be loaded based on `shouldLoadChannel`.
             if (!shouldLoadChannel(channel.oldId)) {
-                console.log(`[loadChannels] Skipping non-categorized channel: ${channel.name}`);
                 continue;
             }
 
             const info = `Restored Channel: ${channel.name}`;
-            console.log(`[loadChannels] Restoring non-categorized channel: ${channel.name}`);
             const createdChannel = await loadChannel(channel, guild, null, options, limiter);
             if (createdChannel) {
                 backup.channelMap[channel.oldId] = createdChannel;
@@ -340,8 +314,6 @@ export async function toLoadloadChannels(guild, backup, limiter, options) {
             console.error(`Error restoring non-categorized channel ${channel.name}: ${error.message}`);
         }
     }
-
-    console.log(`[loadChannels] Channels restored: ${savedChannels}/${totalChannels}`);
 
     // Ensure progress doesn't exceed the total number of channels
     if (savedChannels > totalChannels) {

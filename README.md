@@ -22,7 +22,7 @@ npm install @outwalk/discord-backup
 
 ### Create
 
-Create a backup for the specified server.
+Create a backup for the specified server. **You don't need to provide `toBackup` or `doNotBackup` options**—the module will back up all data by default if these options are not specified.
 
 ```js
 import backup from "@outwalk/discord-backup";
@@ -32,7 +32,7 @@ const backupData = await backup.create(guild, options);
 
 ### Load
 
-Allows you to load a backup on a Discord server!
+Allows you to load a backup on a Discord server! **You don't need to provide toLoad or doNotLoad options**—the module will load all data by default if these options are not specified.
 
 ```js
 import backup from "@outwalk/discord-backup";
@@ -109,6 +109,7 @@ await backup.create(guild, {
     }
 });
 ```
+Note: If `toBackup` or `doNotBackup` are not provided, the module will back up all data by default.</br>
 
 **backupId**: Specify an Id to be used for the backup, if not provided a random one will be generated.</br>
 **maxMessagesPerChannel**: Maximum of messages to save in each channel. "0" won't save any messages.</br>
@@ -215,6 +216,7 @@ await backup.load(backupData, guild, {
         );
 });
 ```
+Note: If `toLoad` or `doNotLoad` are not provided, the module will load all data by default.</br>
 
 **clearGuildBeforeRestore**: Whether to clear the guild (roles, channels, etc... will be deleted) before the backup restoration (recommended).</br>
 **maxMessagesPerChannel**: Maximum of messages to restore in each channel. "0" won't restore any messages.</br>

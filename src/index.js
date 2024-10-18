@@ -78,8 +78,8 @@ async function create(guild, options = {}) {
         maxMessagesPerChannel: 10,
         jsonSave: true,
         jsonBeautify: false,
-        doNotBackup: [],
-        toBackup: [],
+        doNotBackup: [] || null,
+        toBackup: []  || null,
         backupMembers: false,
         saveImages: true,
         speed: 250,
@@ -182,7 +182,42 @@ async function create(guild, options = {}) {
         backup.bannerURL = guild.bannerURL();
     }
 
-    if (options.toBackup.length > 0) {
+    // Default behavior if neither toBackup nor doNotBackup is specified
+    if ((!options.toBackup || options.toBackup.length === 0) && (!options.doNotBackup || options.doNotBackup.length === 0)) {
+        // Backup everything by default
+        if (check2FA(options, guild, "bans")) {
+            backup.bans = await createFunctions.getBans(guild, limiter, options);
+        }
+        backup.roles = await createFunctions.getRoles(guild, limiter, options);
+        backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        if (options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
+    } else if (options.doNotBackup.length > 0) {
+        // Use doNotBackup to exclude backup of specific items.
+        if (!options.doNotBackup.includes("bans")) {
+            if (check2FA(options, guild, "bans")) {
+                backup.bans = await createFunctions.getBans(guild, limiter, options);
+            }
+        }
+
+        if (!options.doNotBackup.includes("roles")) {
+            backup.roles = await createFunctions.getRoles(guild, limiter, options);
+        }
+
+        if (!options.doNotBackup.includes("emojis")) {
+            backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        }
+
+        if (!options.doNotBackup.includes("channels")) {
+            backup.channels = await createFunctions.doNotBackupgetChannels(guild, limiter, options);
+        }
+
+        if (options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
+    } else if (options.toBackup.length > 0) {
         // Use toBackup to backup specific items.
         const toBackupList = options.toBackup;
 
@@ -194,7 +229,7 @@ async function create(guild, options = {}) {
 
         if (toBackupList.includes("roles")) {
             backup.roles = await createFunctions.getRoles(guild, limiter, options);
-        }  
+        }
 
         if (toBackupList.includes("emojis")) {
             backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
@@ -202,33 +237,10 @@ async function create(guild, options = {}) {
 
         if (toBackupList.includes("channels")) {
             backup.channels = await createFunctions.getChannels(guild, limiter, options);
-        }  
+        }
 
-        if (toBackupList && toBackupList.length > 0 && !toBackupList.includes("channels")) {
+        if (toBackupList.length > 0 && !toBackupList.includes("channels")) {
             backup.channels = await createFunctions.toBackupgetChannels(guild, limiter, options);
-        }
-
-        if (options && options.backupMembers) {
-            backup.members = await createFunctions.getMembers(guild, limiter, options);
-        }
-    } else if (options.doNotBackup.length > 0) {
-        // Use doNotBackup to exclude backup of specific items.
-        if (!options || !(options.doNotBackup || []).includes("bans")) {
-            if (check2FA(options, guild, "bans")) {
-                backup.bans = await createFunctions.getBans(guild, limiter, options);
-            }
-        }
-
-        if (!options || !(options.doNotBackup || []).includes("roles")) {
-            backup.roles = await createFunctions.getRoles(guild, limiter, options);
-        }
-
-        if (!options || !(options.doNotBackup || []).includes("emojis")) {
-            backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
-        }
-
-        if (!options || !(options.doNotBackup || []).includes("channels")) {
-            backup.channels = await createFunctions.doNotBackupgetChannels(guild, limiter, options);
         }
 
         if (options && options.backupMembers) {
@@ -259,8 +271,8 @@ async function load(backup, guild, options) {
         maxMessagesPerChannel: 10,
         speed: 250,
         concurrency: 45,
-        doNotLoad: [],
-        toLoad: [],
+        doNotLoad: [] || null,
+        toLoad: [] || null,
         verbose: false,
         onStatusChange: null,
         ...options,
@@ -307,7 +319,70 @@ async function load(backup, guild, options) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
-    if (options.toLoad.length > 0) {
+    // Default behavior if neither toLoad nor doNotLoad is specified
+    if ((!options.toLoad || options.toLoad.length === 0) && (!options.doNotLoad || options.doNotLoad.length === 0)) {
+        // Load everything by default
+        if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+            await clearGuild(guild, limiter);
+        }
+
+        await Promise.all([
+            loadFunctions.loadConfig(guild, backupData, limiter, options),
+            loadFunctions.loadBans(guild, backupData, limiter, options),
+        ]);
+
+        await loadFunctions.loadRoles(guild, backupData, limiter, options);
+        await loadFunctions.doNotLoadloadChannels(guild, backupData, limiter, options);
+
+        await Promise.all([
+            loadFunctions.loadAFk(guild, backupData, limiter, options),
+            loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+            loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+            loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
+        ]);
+
+        await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
+        await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+
+    } else if (options.doNotLoad.length > 0) {
+        // Use doNotLoad to exclude load of specific items.
+        if (!options || !(options.doNotLoad || []).includes("main")) {
+            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+                await clearGuild(guild, limiter);
+            }
+
+            await Promise.all([
+                loadFunctions.loadConfig(guild, backupData, limiter, options),
+                loadFunctions.loadBans(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("roles")) {
+            await loadFunctions.loadRoles(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("channels")) {
+            await loadFunctions.doNotLoadloadChannels(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("main")) {
+            await Promise.all([
+                loadFunctions.loadAFk(guild, backupData, limiter, options),
+                loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+                loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+                loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
+            await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("emojis")) {
+            await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+        }
+
+    } else if (options.toLoad.length > 0) {
         // Use toLoad to load specific items.
         const toLoadList = options.toLoad;
 
@@ -344,44 +419,6 @@ async function load(backup, guild, options) {
         }
 
         if (toLoadList.includes("emojis")) {
-            await loadFunctions.loadEmojis(guild, backupData, limiter, options);
-        }
-    } else if (options.doNotLoad.length > 0) {
-        // Use doNotLoad to exclude load of specific items.
-        if (!options || !(options.doNotLoad || []).includes("main")) {
-            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
-                await clearGuild(guild, limiter);
-            }
-
-
-            await Promise.all([
-                loadFunctions.loadConfig(guild, backupData, limiter, options),
-                loadFunctions.loadBans(guild, backupData, limiter, options),
-            ]);
-        }
-
-        if (!options || !(options.doNotLoad || []).includes("roles")) {
-            await loadFunctions.loadRoles(guild, backupData, limiter, options);
-        }
-
-        if (!options || !(options.doNotLoad || []).includes("channels")) {
-            await loadFunctions.doNotLoadloadChannels(guild, backupData, limiter, options);
-        }
-
-        if (!options || !(options.doNotLoad || []).includes("main")) {
-            await Promise.all([
-                loadFunctions.loadAFk(guild, backupData, limiter, options),
-                loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
-                loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
-                loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
-            ]);
-        }
-
-        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
-            await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
-        }
-
-        if (!options || !(options.doNotLoad || []).includes("emojis")) {
             await loadFunctions.loadEmojis(guild, backupData, limiter, options);
         }
     }
