@@ -68,15 +68,22 @@ async function create(guild, options = {}) {
     if (!intents.has(GatewayIntentBits.Guilds))
         throw new Error("GUILDS intent is required");
 
+    // Ensure `toBackup` and `doNotBackup` are not used together
+    if (options.toBackup && options.doNotBackup) {
+        throw new Error("You cannot use both 'toBackup' and 'doNotBackup' options at the same time.");
+    }
+
     options = {
         backupId: null,
         maxMessagesPerChannel: 10,
         jsonSave: true,
         jsonBeautify: false,
-        doNotBackup: [],
+        doNotBackup: [] || null,
+        toBackup: []  || null,
         backupMembers: false,
         saveImages: true,
         speed: 250,
+        concurrency: 45,
         verbose: false,
         ignore2FA: false,
         onStatusChange: null,
@@ -111,7 +118,13 @@ async function create(guild, options = {}) {
         id: options.backupId ?? SnowflakeUtil.generate(Date.now()),
     };
 
-    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
+    const limiter = new Bottleneck({
+        reservoir: 50, // Maximum number of requests
+        reservoirRefreshAmount: 50, // Reset reservoir back to 50
+        reservoirRefreshInterval: 1000, // Refresh every second (1000ms)
+        maxConcurrent: options.concurrency, // Allow up to `concurrency` tasks at the same time
+        minTime: options.speed // Control minimum delay between requests
+    });
 
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
@@ -169,26 +182,70 @@ async function create(guild, options = {}) {
         backup.bannerURL = guild.bannerURL();
     }
 
-    if (options && options.backupMembers) {
-        backup.members = await createFunctions.getMembers(guild, limiter, options);
-    }
-
-    if (!options || !(options.doNotBackup || []).includes("bans")) {
+    // Default behavior if neither toBackup nor doNotBackup is specified
+    if ((!options.toBackup || options.toBackup.length === 0) && (!options.doNotBackup || options.doNotBackup.length === 0)) {
+        // Backup everything by default
         if (check2FA(options, guild, "bans")) {
             backup.bans = await createFunctions.getBans(guild, limiter, options);
         }
-    }
-
-    if (!options || !(options.doNotBackup || []).includes("roles")) {
         backup.roles = await createFunctions.getRoles(guild, limiter, options);
-    }
+        backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        if (options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
+    } else if (options.doNotBackup.length > 0) {
+        // Use doNotBackup to exclude backup of specific items.
+        if (!options.doNotBackup.includes("bans")) {
+            if (check2FA(options, guild, "bans")) {
+                backup.bans = await createFunctions.getBans(guild, limiter, options);
+            }
+        }
 
-    if (!options || !(options.doNotBackup || []).includes("emojis")) {
-        backup.emojis = await createFunctions.getEmojis(guild, options, limiter);
-    }
+        if (!options.doNotBackup.includes("roles")) {
+            backup.roles = await createFunctions.getRoles(guild, limiter, options);
+        }
 
-    if (!options || !(options.doNotBackup || []).includes("channels")) {
-        backup.channels = await createFunctions.getChannels(guild, options, limiter);
+        if (!options.doNotBackup.includes("emojis")) {
+            backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        }
+
+        if (!options.doNotBackup.includes("channels")) {
+            backup.channels = await createFunctions.doNotBackupgetChannels(guild, limiter, options);
+        }
+
+        if (options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
+    } else if (options.toBackup.length > 0) {
+        // Use toBackup to backup specific items.
+        const toBackupList = options.toBackup;
+
+        if (toBackupList.includes("bans")) {
+            if (check2FA(options, guild, "bans")) {
+                backup.bans = await createFunctions.getBans(guild, limiter, options);
+            }
+        }
+
+        if (toBackupList.includes("roles")) {
+            backup.roles = await createFunctions.getRoles(guild, limiter, options);
+        }
+
+        if (toBackupList.includes("emojis")) {
+            backup.emojis = await createFunctions.getEmojis(guild, limiter, options);
+        }
+
+        if (toBackupList.includes("channels")) {
+            backup.channels = await createFunctions.getChannels(guild, limiter, options);
+        }
+
+        if (toBackupList.length > 0 && !toBackupList.includes("channels")) {
+            backup.channels = await createFunctions.toBackupgetChannels(guild, limiter, options);
+        }
+
+        if (options && options.backupMembers) {
+            backup.members = await createFunctions.getMembers(guild, limiter, options);
+        }
     }
 
     if (!options || options.jsonSave == undefined || options.jsonSave) {
@@ -204,11 +261,18 @@ async function create(guild, options = {}) {
 async function load(backup, guild, options) {
     if (!guild) throw new Error("Invalid Guild!");
 
+    // Ensure `toLoad` and `doNotLoad` are not used together
+    if (options.toLoad && options.doNotLoad) {
+        throw new Error("You cannot use both 'toLoad' and 'doNotLoad' options at the same time.");
+    }
+
     options = {
         clearGuildBeforeRestore: true,
         maxMessagesPerChannel: 10,
         speed: 250,
-        doNotLoad: [],
+        concurrency: 45,
+        doNotLoad: [] || null,
+        toLoad: [] || null,
         verbose: false,
         onStatusChange: null,
         ...options,
@@ -222,7 +286,13 @@ async function load(backup, guild, options) {
         throw new Error("Speed option must be a string or number");
     }
 
-    const limiter = new Bottleneck({ minTime: options.speed, maxConcurrent: 1 });
+    const limiter = new Bottleneck({
+        reservoir: 50, // Maximum number of requests
+        reservoirRefreshAmount: 50, // Reset reservoir back to 50
+        reservoirRefreshInterval: 1000, // Refresh every second (1000ms)
+        maxConcurrent: options.concurrency, // Allow up to `concurrency` tasks at the same time
+        minTime: options.speed // Control minimum delay between requests
+    });
 
     /* if verbose is enabled, log all tasks at executing and done stages */
     if (options.verbose) {
@@ -249,47 +319,108 @@ async function load(backup, guild, options) {
         console.error(`Job Failed: ${error.message}\nID: ${jobInfo.options.id}`);
     });
 
-    // Main part of the backup restoration:
-    if (!options || !(options.doNotLoad || []).includes("main")) {
+    // Default behavior if neither toLoad nor doNotLoad is specified
+    if ((!options.toLoad || options.toLoad.length === 0) && (!options.doNotLoad || options.doNotLoad.length === 0)) {
+        // Load everything by default
         if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
             await clearGuild(guild, limiter);
         }
-
 
         await Promise.all([
             loadFunctions.loadConfig(guild, backupData, limiter, options),
             loadFunctions.loadBans(guild, backupData, limiter, options),
         ]);
-    }
 
-    // Load roles:
-    if (!options || !(options.doNotLoad || []).includes("roles")) {
         await loadFunctions.loadRoles(guild, backupData, limiter, options);
-    }
+        await loadFunctions.doNotLoadloadChannels(guild, backupData, limiter, options);
 
-    // Load channels:
-    if (!options || !(options.doNotLoad || []).includes("channels")) {
-        await loadFunctions.loadChannels(guild, backupData, options, limiter);
-    }
-
-    // Load remaining configuration (AFK settings, embed channels, auto moderation, etc.):
-    if (!options || !(options.doNotLoad || []).includes("main")) {
         await Promise.all([
             loadFunctions.loadAFk(guild, backupData, limiter, options),
             loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
             loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
             loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
         ]);
-    }
 
-    // Assign roles:
-    if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
         await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
-    }
-
-    // Restore Emojis:
-    if (!options || !(options.doNotLoad || []).includes("emojis")) {
         await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+
+    } else if (options.doNotLoad.length > 0) {
+        // Use doNotLoad to exclude load of specific items.
+        if (!options || !(options.doNotLoad || []).includes("main")) {
+            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+                await clearGuild(guild, limiter);
+            }
+
+            await Promise.all([
+                loadFunctions.loadConfig(guild, backupData, limiter, options),
+                loadFunctions.loadBans(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("roles")) {
+            await loadFunctions.loadRoles(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("channels")) {
+            await loadFunctions.doNotLoadloadChannels(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("main")) {
+            await Promise.all([
+                loadFunctions.loadAFk(guild, backupData, limiter, options),
+                loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+                loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+                loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("roleAssignments")) {
+            await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
+        }
+
+        if (!options || !(options.doNotLoad || []).includes("emojis")) {
+            await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+        }
+
+    } else if (options.toLoad.length > 0) {
+        // Use toLoad to load specific items.
+        const toLoadList = options.toLoad;
+
+        if (toLoadList.includes("main")) {
+            if (options.clearGuildBeforeRestore == undefined || options.clearGuildBeforeRestore) {
+                await clearGuild(guild, limiter);
+            }
+
+            await Promise.all([
+                loadFunctions.loadConfig(guild, backupData, limiter, options),
+                loadFunctions.loadBans(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (toLoadList.includes("roles")) {
+            await loadFunctions.loadRoles(guild, backupData, limiter, options);
+        }
+
+        if (toLoadList && toLoadList.length > 0) {
+            await loadFunctions.toLoadloadChannels(guild, backupData, limiter, options);
+        }
+
+        if (toLoadList.includes("main")) {
+            await Promise.all([
+                loadFunctions.loadAFk(guild, backupData, limiter, options),
+                loadFunctions.loadEmbedChannel(guild, backupData, limiter, options),
+                loadFunctions.loadAutoModRules(guild, backupData, limiter, options),
+                loadFunctions.loadFinalSettings(guild, backupData, limiter, options),
+            ]);
+        }
+
+        if (toLoadList.includes("roleAssignments")) {
+            await loadFunctions.assignRolesToMembers(guild, backupData, limiter, options);
+        }
+
+        if (toLoadList.includes("emojis")) {
+            await loadFunctions.loadEmojis(guild, backupData, limiter, options);
+        }
     }
 
     return backupData;

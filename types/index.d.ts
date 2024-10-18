@@ -23,9 +23,11 @@ export declare interface CreateOptions {
     jsonSave?: boolean;
     jsonBeautify?: boolean;
     doNotBackup?: (string | { channels: string[] })[];
+    toBackup?: (string | { channels: string[] })[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;
+    concurrency?: number;
     verbose?: boolean;
     ignore2FA?: boolean;
     onStatusChange?: (status: BackupStatus) => void;
@@ -35,8 +37,10 @@ export declare interface LoadOptions {
     clearGuildBeforeRestore?: boolean;
     maxMessagesPerChannel?: number;
     speed?: number;
+    concurrency?: number;
     verbose?: boolean;
-    doNotLoad?: string[];
+    doNotLoad?: (string | { channels: string[] })[];
+    toLoad?: (string | { channels: string[] })[];
     onStatusChange?: (status: BackupStatus) => void;
 }
 

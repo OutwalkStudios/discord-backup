@@ -63,6 +63,7 @@ export function fetchVoiceChannelData(channel) {
         bitrate: channel.bitrate,
         userLimit: channel.userLimit,
         parent: channel.parent ? channel.parent.name : null,
+        parent_id: channel.parentId || null,
         permissions: fetchChannelPermissions(channel)
     };
 }
@@ -78,6 +79,7 @@ export async function fetchStageChannelData(channel, options, limiter) {
         bitrate: channel.bitrate,
         userLimit: channel.userLimit,
         parent: channel.parent ? channel.parent.name : null,
+        parent_id: channel.parentId || null,
         permissions: fetchChannelPermissions(channel),
         messages: []
     };
@@ -156,6 +158,7 @@ export async function fetchTextChannelData(channel, options, limiter) {
         nsfw: channel.nsfw,
         rateLimitPerUser: channel.type == ChannelType.GuildText ? channel.rateLimitPerUser : undefined,
         parent: channel.parent ? channel.parent.name : null,
+        parent_id: channel.parentId || null,
         topic: channel.topic,
         permissions: fetchChannelPermissions(channel),
         messages: [],
