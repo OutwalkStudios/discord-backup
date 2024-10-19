@@ -96,7 +96,6 @@ export async function fetchStageChannelData(channel, options, limiter) {
 /* fetches the messages from a channel */
 export async function fetchChannelMessages(channel, options, limiter) {
     const messages = [];
-
     const messageCount = isNaN(options.maxMessagesPerChannel) ? 10 : options.maxMessagesPerChannel;
     const fetchOptions = { limit: (messageCount < 100) ? messageCount : 100 };
 
@@ -117,22 +116,22 @@ export async function fetchChannelMessages(channel, options, limiter) {
                 return;
             }
 
-            /* dont save messages that are too long */
+            // Avoid backing up very long messages (content length > 2000 characters)
             if (message.cleanContent.length > 2000) return;
 
+            // Fetch and process attachments (base64 encoding for images)
             const files = await Promise.all(message.attachments.map(async (attachment) => {
-                if (attachment.url && ["png", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi"].includes(attachment.url.split(".").pop())) {
-                    if (options.saveImages && options.saveImages == "base64") {
-                        const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
-                        const buffer = Buffer.from(response.data, "binary").toString("base64");
-
-                        return { name: attachment.name, attachment: buffer };
-                    }
+                const fileExtension = attachment.url.split('.').pop().toLowerCase();
+                if (["png", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi"].includes(fileExtension) && options.saveImages && options.saveImages == "base64") {
+                    const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
+                    const buffer = Buffer.from(response.data, "binary").toString("base64");
+                    return { name: attachment.name, attachment: buffer };
                 }
 
                 return { name: attachment.name, attachment: attachment.url };
             }));
 
+            // Store message and attachments together
             messages.push({
                 oldId: message.id,
                 userId: message.author.id,
@@ -147,6 +146,9 @@ export async function fetchChannelMessages(channel, options, limiter) {
             });
         }));
     }
+
+    // Ensure the messages are sorted by their creation time to maintain correct order.
+    messages.sort((a, b) => new Date(a.sentAt) - new Date(b.sentAt));
 
     return messages;
 }
@@ -229,8 +231,6 @@ export async function loadChannel(channelData, guild, category, options, limiter
             () => channel.createWebhook({ name: "MessagesBackup", avatar: channel.client.user.displayAvatarURL() })
         );
         if (!webhook) return;
-
-        messages = messages.reverse(); // Process messages in reverse order
 
         // Filter out any messages that are thread names or empty content
         messages = messages.filter(message => message.content.length > 0 || message.embeds.length > 0 || message.files.length > 0);
