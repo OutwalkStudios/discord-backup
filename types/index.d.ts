@@ -23,6 +23,7 @@ export declare interface CreateOptions {
     jsonSave?: boolean;
     jsonBeautify?: boolean;
     doNotBackup?: (string | { channels: string[] })[];
+    toBackup?: (string | { channels: string[] })[];
     backupMembers?: boolean;
     saveImages?: boolean | string;
     speed?: number;
@@ -38,7 +39,8 @@ export declare interface LoadOptions {
     speed?: number;
     concurrency?: number;
     verbose?: boolean;
-    doNotLoad?: string[];
+    doNotLoad?: (string | { channels: string[] })[];
+    toLoad?: (string | { channels: string[] })[];
     onStatusChange?: (status: BackupStatus) => void;
 }
 
