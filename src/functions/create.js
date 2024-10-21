@@ -100,7 +100,7 @@ export async function getRoles(guild, limiter, options) {
 }
 
 /* returns an array with the emojis of the guild */
-export async function getEmojis(guild, options, limiter) {
+export async function getEmojis(guild, limiter, options) {
 
     const emojis = await limiter.schedule({ id: "getEmojis::guild.emojis.fetch" }, () => guild.emojis.fetch());
     const totalEmojis = emojis.size;
@@ -130,7 +130,7 @@ export async function getEmojis(guild, options, limiter) {
 }
 
 /* returns an array with the channels of the guild */
-export async function getChannels(guild, options, limiter) {
+export async function getChannels(guild, limiter, options) {
 
     const channels = await limiter.schedule({ id: "getChannels::guild.channels.fetch" }, () => guild.channels.fetch());
     const collectedChannels = { categories: [], others: [] };
