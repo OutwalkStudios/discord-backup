@@ -152,8 +152,17 @@ async function create(guild, options = {}) {
     });
 
     if (check2FA(options, guild, "auto moderation rules")) {
+    /* Check if there's already a rule with trigger type 5 */
+    const existingRules = await guild.autoModerationRules.fetch();
+    const ruleType5 = existingRules.find(rule => rule.triggerType === 5);
+
+    if (!ruleType5) {
+        /* Only create the rule if it doesn't already exist */
         backup.autoModerationRules = await createFunctions.getAutoModerationRules(guild, limiter, options);
+    } else {
+        console.log("Auto Moderation rule with trigger type 5 already exists, skipping creation");
     }
+}
 
     if (guild.iconURL()) {
         if (options && options.saveImages && options.saveImages == "base64") {
