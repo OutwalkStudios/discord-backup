@@ -1,6 +1,6 @@
 import axios from "axios";
 import { ChannelType } from "discord.js";
-import { 
+import {
     fetchChannelPermissions,
     fetchTextChannelData,
     fetchVoiceChannelData,
@@ -115,7 +115,7 @@ export async function getMembers(guild, limiter, options) {
 export async function getRoles(guild, limiter, options) {
 
     const roles = await limiter.schedule({ id: "getRoles::guild.roles.fetch" }, () => guild.roles.fetch());
-    
+
     // Filter out managed roles (roles created by bots or integrations)
     const filteredRoles = roles.filter((role) => !role.managed).sort((a, b) => b.position - a.position);
     const totalRoles = filteredRoles.size;
@@ -489,10 +489,10 @@ export async function toBackupgetChannels(guild, limiter, options) {
 
 /* returns an array with the guild's automoderation rules */
 export async function getAutoModerationRules(guild, limiter, options) {
-    
+
     const rules = await limiter.schedule({ id: "getAutoModerationRules::guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch({ cache: false }));
     const totalRules = rules.size;
-    
+
     let savedRules = 0;
     const collectedRules = [];
 

@@ -244,7 +244,7 @@ export async function toLoadloadChannels(guild, backup, limiter, options) {
 
     // Helper function to check if a category should be loaded based on its children having the specified `parent_id` or if the category itself is specified.
     function shouldLoadCategory(categoryName) {
-        const result = backup.channels.categories.some(category => 
+        const result = backup.channels.categories.some(category =>
             category.name === categoryName &&
             (category.children.some(child => specifiedChannels.includes(child.parent_id)) || specifiedChannels.includes(category.name))
         );
@@ -462,7 +462,7 @@ export async function loadEmbedChannel(guild, backup, limiter, options) {
             console.error(error.message);
         }
     }
-    
+
 }
 
 /* restore the guild settings (final part, which requires everything else already restored) */
@@ -524,7 +524,7 @@ export async function assignRolesToMembers(guild, backup, limiter, options) {
         }
         processedMembers++;
     }
-    
+
 }
 
 export default {
