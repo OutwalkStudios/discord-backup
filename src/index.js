@@ -17,7 +17,7 @@ if (!fs.existsSync(backups)) fs.mkdirSync(backups);
 function check2FA(options, guild, permission) {
     /* skip further processing when 2FA is not required */
     if (guild.mfaLevel == GuildMFALevel.None) return true;
-    
+
     /* log a warning when an action requires 2FA but 2FA has not been setup on the bot owner */
     if (!guild.client.user.mfaEnabled && !options.ignore2FA) {
         console.log(`[WARNING] - 2FA is required by this server in order to backup ${permission}`);
@@ -37,7 +37,7 @@ async function getBackupData(backupId) {
         if (file) {
             const backupData = JSON.parse(
                 fs.readFileSync(`${backups}${path.sep}${file}`)
-            );            
+            );
             resolve(backupData);
         } else {
             reject("No backup found");
@@ -78,8 +78,8 @@ async function create(guild, options = {}) {
         maxMessagesPerChannel: 10,
         jsonSave: true,
         jsonBeautify: false,
-        doNotBackup: [] || null,
-        toBackup: []  || null,
+        doNotBackup: [],
+        toBackup: [],
         backupMembers: false,
         saveImages: true,
         speed: 250,
@@ -271,8 +271,8 @@ async function load(backup, guild, options) {
         maxMessagesPerChannel: 10,
         speed: 250,
         concurrency: 45,
-        doNotLoad: [] || null,
-        toLoad: [] || null,
+        doNotLoad: [],
+        toLoad: [],
         verbose: false,
         onStatusChange: null,
         ...options,

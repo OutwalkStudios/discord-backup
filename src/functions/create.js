@@ -72,7 +72,7 @@ export async function getBans(guild, limiter, options) {
 
     let savedBans = 0;
     for (const ban of bans.values()) {
-        const info = `Backed up Ban: User ID: ${ban.user.id}, Reason: ${ban.reason || "No reason provided"}`
+        const info = `Backed up Ban: User ID: ${ban.user.id}, Reason: ${ban.reason || "No reason provided"}`;
         savedBans++;
         await logStatus("Bans", savedBans, totalBans, options, info);
 
@@ -93,7 +93,7 @@ export async function getMembers(guild, limiter, options) {
 
     let savedMembers = 0;
     for (const member of members.values()) {
-        const info = `Backed up Member: ${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`
+        const info = `Backed up Member: ${member.user.username}#${member.user.discriminator} (ID: ${member.user.id})`;
         savedMembers++;
         await logStatus("Members", savedMembers, totalMembers, options, info);
 
@@ -125,7 +125,7 @@ export async function getRoles(guild, limiter, options) {
     let savedRoles = 0;
 
     for (const role of filteredRoles.values()) {
-        const info = `Backed up Role: ${role.name} (ID: ${role.id})`
+        const info = `Backed up Role: ${role.name} (ID: ${role.id})`;
         savedRoles++;
         await logStatus("Roles", savedRoles, totalRoles, options, info);
 
@@ -155,7 +155,7 @@ export async function getEmojis(guild, limiter, options) {
     const collectedEmojis = [];
 
     for (const emoji of emojis.values()) {
-        const info = `Backed up Emoji: ${emoji.name} (ID: ${emoji.id})`
+        const info = `Backed up Emoji: ${emoji.name} (ID: ${emoji.id})`;
         if (emojis.length >= 50) break;
 
         const data = { name: emoji.name };
@@ -200,7 +200,7 @@ export async function getChannels(guild, limiter, options) {
 
         for (let child of children) {
             let channelData;
-            const info = `Backed up Channel: ${child.name} (Category: ${category.name})`
+            const info = `Backed up Channel: ${child.name} (Category: ${category.name})`;
 
             if (child.type == ChannelType.GuildText || child.type == ChannelType.GuildAnnouncement) {
                 channelData = await fetchTextChannelData(child, options, limiter);
@@ -238,7 +238,7 @@ export async function getChannels(guild, limiter, options) {
 
     for (let channel of others) {
         let channelData;
-        const info = `Backed up Channel: ${channel.name}`
+        const info = `Backed up Channel: ${channel.name}`;
 
         if (channel.type == ChannelType.GuildText || channel.type == ChannelType.GuildAnnouncement) {
             channelData = await fetchTextChannelData(channel, options, limiter);
@@ -497,7 +497,7 @@ export async function getAutoModerationRules(guild, limiter, options) {
     const collectedRules = [];
 
     for (const rule of rules.values()) {
-        const info = `Backed up AutoModeration Rule: ${rule.name} (ID: ${rule.id})`
+        const info = `Backed up AutoModeration Rule: ${rule.name} (ID: ${rule.id})`;
         const actions = [];
 
         for (const action of rule.actions) {

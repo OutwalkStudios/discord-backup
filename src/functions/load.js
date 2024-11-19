@@ -45,57 +45,57 @@ export async function loadConfig(guild, backup, limiter, options) {
     const totalTasks = tasks.length;
 
     if (backup.name) {
-        const info = `Restored Config: Set Name to ${backup.name}`
+        const info = `Restored Config: Set Name to ${backup.name}`;
         await limiter.schedule({ id: "loadConfig::guild.setName" }, () => guild.setName(backup.name));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     }
 
     if (backup.iconBase64) {
-        const info = "Restored Config: Set Icon (Base64)"
+        const info = "Restored Config: Set Icon (Base64)";
         await limiter.schedule({ id: "loadConfig::guild.setIcon" }, () => guild.setIcon(Buffer.from(backup.iconBase64, "base64")));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     } else if (backup.iconURL) {
-        const info = "Restored Config: Setting Icon (URL)"
+        const info = "Restored Config: Setting Icon (URL)";
         await limiter.schedule({ id: "loadConfig::guild.setIcon" }, () => guild.setIcon(backup.iconURL));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     }
 
     if (backup.splashBase64) {
-        const info = "Restored Config: Setting Splash (Base64)"
+        const info = "Restored Config: Setting Splash (Base64)";
         await limiter.schedule({ id: "loadConfig::guild.setSplash" }, () => guild.setSplash(Buffer.from(backup.splashBase64, "base64")));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     } else if (backup.splashURL) {
-        const info = "Restored Config: Setting Splash (URL)"
+        const info = "Restored Config: Setting Splash (URL)";
         await limiter.schedule({ id: "loadConfig::guild.setSplash" }, () => guild.setSplash(backup.splashURL));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     }
 
     if (backup.bannerBase64) {
-        const info = "Restored Config: Setting Banner (Base64)"
+        const info = "Restored Config: Setting Banner (Base64)";
         await limiter.schedule({ id: "loadConfig::guild.setBanner" }, () => guild.setBanner(Buffer.from(backup.bannerBase64, "base64")));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     } else if (backup.bannerURL) {
-        const info = "Restored Config: Setting Banner (URL)"
+        const info = "Restored Config: Setting Banner (URL)";
         await limiter.schedule({ id: "loadConfig::guild.setBanner" }, () => guild.setBanner(backup.bannerURL));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     }
 
     if (backup.verificationLevel) {
-        const info = `Restored Config: Setting Verification Level to ${backup.verificationLevel}`
+        const info = `Restored Config: Setting Verification Level to ${backup.verificationLevel}`;
         await limiter.schedule({ id: "loadConfig::guild.setVerificationLevel" }, () => guild.setVerificationLevel(backup.verificationLevel));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
     }
 
     if (backup.defaultMessageNotifications) {
-        const info = `Restored Config: Setting Default Message Notifications to ${backup.defaultMessageNotifications}`
+        const info = `Restored Config: Setting Default Message Notifications to ${backup.defaultMessageNotifications}`;
         await limiter.schedule({ id: "loadConfig::guild.setDefaultMessageNotifications" }, () => guild.setDefaultMessageNotifications(backup.defaultMessageNotifications));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
@@ -103,7 +103,7 @@ export async function loadConfig(guild, backup, limiter, options) {
 
     const changeableExplicitLevel = guild.features.includes(GuildFeature.Community);
     if (backup.explicitContentFilter && changeableExplicitLevel) {
-        const info = `Restored Config: Setting Explicit Content Filter to ${backup.explicitContentFilter}`
+        const info = `Restored Config: Setting Explicit Content Filter to ${backup.explicitContentFilter}`;
         await limiter.schedule({ id: "loadConfig::guild.setExplicitContentFilter" }, () => guild.setExplicitContentFilter(backup.explicitContentFilter));
         completedTasks++;
         await logStatus("Config", completedTasks, totalTasks, options, info);
@@ -122,17 +122,14 @@ export async function loadRoles(guild, backup, limiter, options) {
     let savedRoles = 0;
 
     for (let role of backup.roles) {
-        let info = '';
         try {
             if (role.isEveryone) {
-                info = "Restored Role: @everyone";
                 await limiter.schedule({ id: `loadRoles::guild.roles.edit::everyone` }, () => guild.roles.edit(guild.roles.everyone, {
                     permissions: BigInt(role.permissions),
                     mentionable: role.mentionable
                 }));
                 backup.roleMap[role.oldId] = guild.roles.everyone;
             } else {
-                info = `Restored Role: ${role.name} (ID: ${role.oldId})`
                 const createdRole = await limiter.schedule({ id: `loadRoles::guild.roles.create::${role.name}` }, () => guild.roles.create({
                     name: role.name,
                     color: role.color,
@@ -145,6 +142,7 @@ export async function loadRoles(guild, backup, limiter, options) {
                 backup.roleMap[role.oldId] = createdRole;
             }
             savedRoles++;
+            const info = `Restored Role: ${role.isEveryone ? "@everyone" : `${role.name} (ID: ${role.oldId})`}`;
             await logStatus("Roles", savedRoles, totalRoles, options, info);
         } catch (error) {
             console.error(error.message);
@@ -336,7 +334,7 @@ export async function loadAutoModRules(guild, backup, limiter, options) {
     let savedRules = 0;
 
     for (const autoModRule of backup.autoModerationRules) {
-        const info = `Restored AutoMod Rule: ${autoModRule.name} (ID: ${autoModRule.id})`
+        const info = `Restored AutoMod Rule: ${autoModRule.name} (ID: ${autoModRule.id})`;
 
         let actions = [];
         for (const action of autoModRule.actions) {
@@ -411,7 +409,7 @@ export async function loadEmojis(guild, backup, limiter, options) {
 
     for (let emoji of backup.emojis) {
         try {
-            const info = `Restored Emoji: ${emoji.name}`
+            const info = `Restored Emoji: ${emoji.name}`;
             if (emoji.url) {
                 await limiter.schedule({ id: `loadEmojis::guild.emojis.create::${emoji.name}` }, () => guild.emojis.create({ name: emoji.name, attachment: emoji.url }));
             } else if (emoji.base64) {
@@ -434,7 +432,7 @@ export async function loadBans(guild, backup, limiter, options) {
 
     for (let ban of backup.bans) {
         try {
-            const info = `Restored Ban: User ID: ${ban.id}`
+            const info = `Restored Ban: User ID: ${ban.id}`;
             await limiter.schedule({ id: `loadBans::guild.members.ban::${ban.id}` }, () => guild.members.ban(ban.id, { reason: ban.reason }));
             savedBans++;
             await logStatus("Bans", savedBans, totalBans, options, info);
@@ -453,7 +451,7 @@ export async function loadEmbedChannel(guild, backup, limiter, options) {
 
     if (backup.widget.channel) {
         try {
-            const info = `Restored Embed Channel: ${backup.widget.channel}`
+            const info = `Restored Embed Channel: ${backup.widget.channel}`;
             await limiter.schedule({ id: "loadEmbedChannel::guild.setWidgetSettings" }, () => guild.setWidgetSettings({
                 enabled: backup.widget.enabled,
                 channel: guild.channels.cache.find((channel) => channel.name == backup.widget.channel)
@@ -493,7 +491,7 @@ export async function loadFinalSettings(guild, backup, limiter, options) {
     if (backup.premiumProgressBarEnabled) {
         const infoBoostBar = "Restored Premium Progress Bar";
         await limiter.schedule({ id: "loadFinalSettings::guild.setPremiumProgressBarEnabled" }, () => guild.setPremiumProgressBarEnabled(backup.premiumProgressBarEnabled));
-        completedFinalTasks++
+        completedFinalTasks++;
         await logStatus("Final Settings", completedFinalTasks, totalFinalTasks, options, infoBoostBar);
     }
 
