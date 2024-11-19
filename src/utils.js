@@ -121,7 +121,7 @@ export async function fetchChannelMessages(channel, options, limiter) {
 
             // Fetch and process attachments (base64 encoding for images)
             const files = await Promise.all(message.attachments.map(async (attachment) => {
-                const fileExtension = attachment.url.split('.').pop().toLowerCase();
+                const fileExtension = attachment.url.split(".").pop().toLowerCase();
                 if (["png", "jpg", "jpeg", "jpe", "jif", "jfif", "jfi"].includes(fileExtension) && options.saveImages && options.saveImages == "base64") {
                     const response = await axios.get(attachment.url, { responseType: "arraybuffer" });
                     const buffer = Buffer.from(response.data, "binary").toString("base64");
@@ -314,15 +314,39 @@ export async function loadChannel(channelData, guild, category, options, limiter
         createOptions.nsfw = channelData.nsfw;
         createOptions.rateLimitPerUser = channelData.rateLimitPerUser;
         createOptions.type = channelData.isNews && guild.features.includes("NEWS") ? ChannelType.GuildAnnouncement : ChannelType.GuildText;
-    } else if (channelData.type == ChannelType.GuildVoice) {
-        createOptions.bitrate = channelData.bitrate;
+    }
+
+    else if (channelData.type == ChannelType.GuildVoice) {
+        let bitrate = channelData.bitrate;
+        const bitrates = Object.values(MAX_BITRATE_PER_TIER);
+
+        /* make sure the bitrate set is allowed by the guild premium tier */
+        while (bitrate > MAX_BITRATE_PER_TIER[guild.premiumTier]) {
+            bitrate = bitrates[guild.premiumTier];
+        }
+
+        createOptions.bitrate = bitrate;
         createOptions.userLimit = channelData.userLimit;
         createOptions.type = channelData.type;
-    } else if (channelData.type == ChannelType.GuildStageVoice) {
+    }
+
+    else if (channelData.type == ChannelType.GuildStageVoice) {
+        let bitrate = channelData.bitrate;
+        const bitrates = Object.values(MAX_BITRATE_PER_TIER);
+
+        /* make sure the bitrate set is allowed by the guild premium tier */
+        while (bitrate > MAX_BITRATE_PER_TIER[guild.premiumTier]) {
+            bitrate = bitrates[guild.premiumTier];
+        }
+
         createOptions.topic = channelData.topic;
         createOptions.nsfw = channelData.nsfw;
-        createOptions.bitrate = channelData.bitrate;
+        createOptions.bitrate = bitrate;
         createOptions.userLimit = channelData.userLimit;
+        createOptions.type = channelData.type;
+
+        /* Stage channels require the server to have Community features. */
+        if (!guild.features.includes(GuildFeature.Community)) return null;
         createOptions.type = ChannelType.GuildStageVoice;
     }
 
