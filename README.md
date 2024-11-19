@@ -1,7 +1,8 @@
 # @outwalk/discord-backup
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/OutwalkStudios/discord-backup/blob/master/LICENSE)
-[![Follow Us](https://img.shields.io/badge/follow-on%20twitter-4AA1EC.svg)](https://twitter.com/OutwalkStudios)
+![build](https://github.com/OutwalkStudios/discord-backup/workflows/build/badge.svg)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/OutwalkStudios/discord-backup/blob/master/LICENSE)
+[![twitter](https://img.shields.io/badge/follow-on%20twitter-4AA1EC.svg)](https://twitter.com/OutwalkStudios)
 
 Discord Backup is a module for backing up and restoring discord servers.
 
