@@ -330,10 +330,12 @@ export async function loadAutoModRules(guild, backup, limiter, options) {
     const roles = await limiter.schedule({ id: "loadAutoModRules::guild.roles.fetch" }, () => guild.roles.fetch());
     const channels = await limiter.schedule({ id: "loadAutoModRules::guild.channels.fetch" }, () => guild.channels.fetch());
 
-    const totalRules = backup.autoModerationRules.length;
+    const autoModRules = await limiter.schedule({ id: "loadAutoModRules::guild.guild.autoModerationRules.fetch" }, () => guild.autoModerationRules.fetch({ cache: false }));
+    const rules = backup.autoModerationRules.filter((rule) => !autoModRules.values().find((rule) => rule.triggerType == 5) || rule.triggerType != 5);
+    const totalRules = rules.length;
     let savedRules = 0;
 
-    for (const autoModRule of backup.autoModerationRules) {
+    for (const autoModRule of rules) {
         const info = `Restored AutoMod Rule: ${autoModRule.name} (ID: ${autoModRule.id})`;
 
         let actions = [];

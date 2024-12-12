@@ -535,8 +535,7 @@ export async function getAutoModerationRules(guild, limiter, options) {
         await logStatus("Auto Moderation Rules", savedRules, totalRules, options, info);
     }
 
-    /* make sure we only backup trigger types that are not restricted to certain conditions */
-    return collectedRules.filter((rule) => rule.triggerType != 5);
+    return collectedRules;
 }
 
 export default {
